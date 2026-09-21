@@ -63,7 +63,7 @@ app.get('/swagger.json', (req, res) => {
 
 app.use('/api/v1/documentation', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-app.use('/api/v1/User', userRouter);
+app.use('/api/v1/user', userRouter);
 
 app.use((req, res, next) => {
     next({
