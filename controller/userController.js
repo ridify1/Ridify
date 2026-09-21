@@ -298,7 +298,7 @@ exports.login = async (req, res, next) => {
 
 exports.changePassword = async (req, res, next) => {
     try {
-        const { id } = req.user;
+        const {id} = req.user;
 
         if (!id) {
             return res.status(401).json({
@@ -367,7 +367,7 @@ exports.selectRole = async (req, res, next) => {
             })
         }
         
-        const checkUser = await userModel.findOne(id);
+        const checkUser = await userModel.findById(id);
         
         if (!checkUser) {
             return next({
@@ -405,7 +405,7 @@ exports.updateUser = async (req, res, next) => {
         })
     }
 
-    const checkUser = await userModel.findOne(id);
+    const checkUser = await userModel.findById(id);
 
     if (condition) {
         return res.status(404).json({
