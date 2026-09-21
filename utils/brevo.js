@@ -14,6 +14,7 @@ exports.sendBrevoEmail = async (options) => {
                 name: process.env.BREVO_SENDER_NAME || 'Ridify',
                 email: process.env.BREVO_SENDER_EMAIL || process.env.SMTP_USER
             },
+            family: 4,
             to: [{ email: options.email }]
         });
 

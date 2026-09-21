@@ -1,4 +1,5 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole} = require('../controller/userController')
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole} = require('../controller/userController');
+const { authenticate } = require('../middleware/auth');
 const { registerValidator } = require('../middleware/validator')
 
 const router = require('express').Router();
@@ -357,7 +358,7 @@ router.post('/login', login);
  *         description: Internal server error
  */
 
-router.post('/changePassword', changePassword);
+router.post('/changePassword',authenticate, changePassword);
 
 /**
  * @swagger
@@ -407,6 +408,6 @@ router.post('/changePassword', changePassword);
  *         description: Internal server error
  */
 
-router.post('/roleSelect', selectRole);
+router.post('/roleSelect', authenticate, selectRole);
 
 module.exports = router
