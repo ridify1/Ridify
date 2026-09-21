@@ -5,8 +5,10 @@ const userRouter = require('./routes/userRouter')
 const app = express();
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
+const cors = require('cors');
 
 app.use(express.json());
+app.use(cors({origin: '*'}));
 
 const swaggerDefinition = {
   openapi: '3.0.0',  
