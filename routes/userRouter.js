@@ -12,7 +12,7 @@ const router = require('express').Router();
 
 /**
  * @swagger
- * /api/v1/User/register:
+ * /api/v1/user/register:
  *   post:
  *     tags:
  *       - User
@@ -76,7 +76,7 @@ router.post('/register', registerValidator ,createUser);
 
 /**
  * @swagger
- * /api/v1/User/verifyOtp:
+ * /api/v1/user/verifyOtp:
  *   post:
  *     tags:
  *       - User
@@ -121,7 +121,7 @@ router.post('/verifyOtp', verifyEmail);
 
 /**
  * @swagger
- * /api/v1/User/resendOtp:
+ * /api/v1/user/resendOtp:
  *   post:
  *     tags:
  *       - User
@@ -172,7 +172,7 @@ router.post('/resendOtp', resendOtp);
 
 /**
  * @swagger
- * /api/v1/User/forgotPassword:
+ * /api/v1/user/forgotPassword:
  *   post:
  *     tags:
  *       - User
@@ -211,7 +211,7 @@ router.post('/forgotPassword', forgotPassword);
 
 /**
  * @swagger
- * /api/v1/User/resetPassword:
+ * /api/v1/user/resetPassword:
  *   post:
  *     tags:
  *       - User
@@ -260,7 +260,7 @@ router.post('/resetPassword', resetPassword);
 
 /**
  * @swagger
- * /api/v1/User/login:
+ * /api/v1/user/login:
  *   post:
  *     tags:
  *       - User
@@ -308,7 +308,7 @@ router.post('/login', login);
 
 /**
  * @swagger
- * /api/v1/User/changePassword:
+ * /api/v1/user/changePassword:
  *   post:
  *     tags:
  *       - User
@@ -361,7 +361,7 @@ router.post('/changePassword', changePassword);
 
 /**
  * @swagger
- * /api/v1/User/roleSelect:
+ * /api/v1/user/roleSelect:
  *   post:
  *     tags:
  *       - User
