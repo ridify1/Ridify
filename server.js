@@ -49,11 +49,12 @@ const swaggerDefinition = {
   }
 };
 
+const path = require('path');
+
 const options = {
   swaggerDefinition,
-  apis: ['./routes/*.js']  
+  apis: [path.join(__dirname, './routes/*.js')]
 };
-
 const swaggerSpec = swaggerJsdoc(options);
 
 app.get('/swagger.json', (req, res) => {
