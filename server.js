@@ -3,9 +3,73 @@ require('dotenv').config();
 const PORT = process.env.PORT || 3000;
 const userRouter = require('./routes/userRouter')
 const app = express();
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
 
 app.use(express.json());
-app.use('/api/v1/user', userRouter)
+
+const swaggerDefinition = {
+  openapi: '3.0.0',  
+  info: {
+    title: 'Ridify Api',
+    version: '1.0.0',
+    description: 'This is a REST API application made with Express.',
+    license: {
+      name: 'official URL',
+      url: 'http://google.com'
+    },
+    contact: {
+      name: 'JSONPlaceholder',
+      url: 'https://jsonplaceholder.typicode.com'
+    },
+  },
+  servers: [
+    {
+      url: 'https://ridify-p1jl.onrender.com',
+      description: 'Production server',
+    },
+    {
+      url: 'http://localhost:5599',
+      description: 'Development server',
+    },
+  ],
+  security: [
+    {
+      bearerAuth: []
+    }
+  ],
+  components: {
+    securitySchemes: {
+      bearerAuth: {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT'
+      }
+    }
+  }
+};
+
+const options = {
+  swaggerDefinition,
+  apis: ['./routes/*.js']  
+};
+
+const swaggerSpec = swaggerJsdoc(options);
+
+app.get('/swagger.json', (req, res) => {
+    res.json(swaggerSpec);
+});
+
+app.use('/api/v1/documentation', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use('/api/v1/User', userRouter);
+
+app.use((req, res, next) => {
+    next({
+        message: `route ${req.originalUrl} and ${req.method} not found`,
+        statusCode: 404
+    })
+});
 
 app.use((err, req, res, next) => {
     if (err.name === 'MulterError') {
@@ -18,13 +82,12 @@ app.use((err, req, res, next) => {
             message: 'Session expired, please login again'
         })
     }
-    res.status(500).json({
+    res.status(err.statusCode || 500).json({
         message: err.message
     })
-})
+});
 
-
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 mongoose.connect(process.env.MONGODB_URI).then(() => {
     console.log('Connected to Database');
     app.listen(PORT, () => {
@@ -32,4 +95,4 @@ mongoose.connect(process.env.MONGODB_URI).then(() => {
     });
 }).catch((error) => {
     console.log("Unable to connect", error.message)
-})
+});
