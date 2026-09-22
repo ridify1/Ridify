@@ -1,6 +1,6 @@
 const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole} = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
-const { registerValidator } = require('../middleware/validator')
+const { registerValidator, loginValidator } = require('../middleware/validator')
 
 const router = require('express').Router();
 
@@ -266,7 +266,7 @@ router.post('/resetPassword', resetPassword);
  *     tags:
  *       - User
  *     summary: User login
- *     description: Authenticates a user using email and password and returns a JWT token
+ *     description: Authenticates a user using email or phone number and password. Account will be locked for 30 minutes after 5 failed attempts.
  *     requestBody:
  *       required: true
  *       content:
@@ -274,12 +274,12 @@ router.post('/resetPassword', resetPassword);
  *           schema:
  *             type: object
  *             required:
- *               - email
+ *               - emailOrPhoneNumber
  *               - password
  *             properties:
- *               email:
+ *               emailOrPhoneNumber:
  *                 type: string
- *                 example: jane.doe@example.com
+ *                 example: jane.doe@example.com or 8012345678
  *               password:
  *                 type: string
  *                 example: P@ssword123
@@ -298,14 +298,16 @@ router.post('/resetPassword', resetPassword);
  *                   type: string
  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       400:
- *         description: Invalid credentials
+ *         description: Invalid credentials or email not verified
+ *       403:
+ *         description: Account locked due to too many failed login attempts
  *       404:
  *         description: User not found
  *       500:
  *         description: Internal server error
  */
 
-router.post('/login', login);
+router.post('/login', loginValidator, login);
 
 /**
  * @swagger
