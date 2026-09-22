@@ -14,6 +14,7 @@ const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
 const redisClient = require("../config/redis");
 const cloudinary = require("../config/cloudinary");
+const fs = require("fs");
 
 const generateOtp = () => otpGenerator.generate(6, {
     digits: true,
@@ -267,7 +268,7 @@ exports.login = async (req, res, next) => {
     try {
         const {emailOrPhoneNumber, password} = req.body;
 
-        const user = await userModel.findOne({ $or: [{ email: emailOrPhoneNumber.toLowerCase() }, { phoneNumber: emailOrPhoneNumber }] });
+        const user = await userModel.findOne({ $or: [{ email: emailOrPhoneNumber.toLowerCase().trim() }, { phoneNumber: emailOrPhoneNumber.trim() }] });
 
         if (!user) {
             return res.status(404).json({
@@ -416,15 +417,16 @@ exports.selectRole = async (req, res, next) => {
             data
         })
     } catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
+            return next({
+                message: error.message,
+                statusCode: 500
+            })
     }
 };
 
 exports.updateUser = async (req, res, next) => {
-    const {id} = req.user;
+    try {
+        const {id} = req.user;
 
     if (!id) {
         return res.status(401).json({
@@ -434,23 +436,44 @@ exports.updateUser = async (req, res, next) => {
 
     const checkUser = await userModel.findById(id);
 
-    if (condition) {
+    if (!checkUser) {
         return res.status(404).json({
             message: 'User not found'
         })
     }
 
-    const {
-        fullName,
-        password
-    } = req.body;
+    const {fullName} = req.body;
 
+    const nameCheck = fullName.split(' ')
+
+        if (nameCheck.length < 2) {
+            return res.status(400).json({
+                message: 'Input a valid fullName'
+            })
+        }
+
+    let result;
     if (req.file) {
       result = await cloudinary.uploader.upload(req.file.path);
       fs.unlinkSync(req.file.path);
     }
 
-}
+    const data = {
+        fullName: fullName || checkUser.fullName,
+        ...(result ? { image: result.secure_url, imagePublicId: result.public_id } : {})
+    }
+
+    await userModel.findByIdAndUpdate(id, data, { new: true });
+
+    res.status(200).json({
+        message: `${checkUser.role} updated successfully`,
+        data
+    })
+    } catch (error) {
+        
+    }
+
+};
 
 exports.getUser = async (req, res, next) => {
     try{
@@ -462,7 +485,7 @@ exports.getUser = async (req, res, next) => {
             })
         }
 
-        const checkUser = await userModel.findOne({id});
+        const checkUser = await userModel.findById(id);
 
         if (!checkUser) {
             return res.status(404).json({
@@ -471,10 +494,12 @@ exports.getUser = async (req, res, next) => {
         }
 
         const info = {"fullname": checkUser.fullName, "email": checkUser.email, "phoneNumber": checkUser.phoneNumber}
+        const img = checkUser?.image;
 
         res.status(200).json({
             message: "Users profile retrieved successfully",
-            info
+            info,
+            img
         })
     }catch (error) {
         return next({

@@ -1,6 +1,7 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole} = require('../controller/userController');
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser} = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
+const upload = require('../config/multer');
 
 const router = require('express').Router();
 
@@ -411,5 +412,108 @@ router.post('/changePassword',authenticate, changePassword);
  */
 
 router.post('/roleSelect', authenticate, selectRole);
+
+/**
+ * @swagger
+ * /api/v1/user/updateUser:
+ *   put:
+ *     tags:
+ *       - User
+ *     summary: Update user profile
+ *     description: Updates the authenticated user's full name and/or profile image
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               fullName:
+ *                 type: string
+ *                 example: Jane Doe
+ *                 description: Must contain at least two words
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: JPG, JPEG or PNG file
+ *     responses:
+ *       200:
+ *         description: User updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: driver updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     fullName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     image:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/sample/image.jpg
+ *       400:
+ *         description: Invalid full name
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.put('/updateUser', authenticate, upload.single('image'), updateUser);
+
+/**
+ * @swagger
+ * /api/v1/user/getUser:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Get user profile
+ *     description: Retrieves the authenticated user's profile information
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Users profile retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Users profile retrieved successfully
+ *                 info:
+ *                   type: object
+ *                   properties:
+ *                     fullname:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     email:
+ *                       type: string
+ *                       example: jane.doe@example.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "8012345678"
+ *                 img:
+ *                   type: string
+ *                   example: https://res.cloudinary.com/sample/image.jpg
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getUser', authenticate, getUser)
 
 module.exports = router
