@@ -63,4 +63,26 @@ const { error } = registerSchema.validate(req.body);
   }
 
   next();
-}
+};
+
+exports.loginValidator = async (req, res, next) => {
+  const schema = joi.object({
+    emailOrPhoneNumber: joi.string().trim().required().messages({
+      "string.empty": "Empty or PhoneNumber cannot be Empty",
+      "any required": "Email or Phone Number is required",
+    }),
+    password: joi.string().required().messages({
+      "any required": "Password is required",
+      "string.empty": "Password cannot be Empty",
+    }),
+  });
+
+  const { error } = schema.validate(req.body);
+  if (error) {
+    return res.status(400).json({
+      message: error.details[0].message,
+    });
+  }
+
+  next();
+};

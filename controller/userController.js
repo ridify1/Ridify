@@ -11,7 +11,8 @@ const {
 } = require("../utils/emailTemplate");
 const sendMail = require("../utils/nodemailer");
 const otpGenerator = require("otp-generator");
-const jwt = require("jsonwebtoken")
+const jwt = require("jsonwebtoken");
+const redisClient = require("../config/redis");
 const cloudinary = require("../config/cloudinary");
 
 const generateOtp = () => otpGenerator.generate(6, {
@@ -264,25 +265,51 @@ exports.resetPassword = async (req, res, next) => {
 
 exports.login = async (req, res, next) => {
     try {
-        const {email, password} = req.body;
+        const {emailOrPhoneNumber, password} = req.body;
 
-        const user = await userModel.findOne({ email: email.toLowerCase()});
+        const user = await userModel.findOne({ $or: [{ email: emailOrPhoneNumber.toLowerCase() }, { phoneNumber: emailOrPhoneNumber }] });
 
         if (!user) {
             return res.status(404).json({
-                message: `User with email ${email} not found`
+                message: `User with email or phone number ${emailOrPhoneNumber} not found`
             })
         }
+
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+      return next({
+        message: `Account locked until ${user.lockUntil}`,
+        statusCode: 403,
+      });
+    }
+
+    if (user.isVerified == false) {
+      return next({
+        message: "Please verify your email before logging in",
+        statusCode: 400,
+      });
+    }
 
         const checkPasssword = await bcrypt.compare(password, user.password);
 
         if (!checkPasssword) {
-            return res.status(400).json({
-                message: 'Invalid Credentials'
-            })
+            user.loginAttempts += 1;
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+        user.loginAttempts = 0;
+      }
+      await user.save();
+      return res.status(400).json({
+        message: "Invalid credentials",
+      });
         }
 
+        await userModel.findByIdAndUpdate(user._id, { loginAttempts: 0, lockUntil: null });
+
         const token = jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: '1h'});
+
+        redisClient.del(`user_${user.id}`);
+
+        redisClient.set(`user_${user.id}`, token, { EX: 86400 });
 
         res.status(200).json({
             message: 'Login successful',
