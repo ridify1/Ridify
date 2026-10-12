@@ -1,4 +1,5 @@
 const userModel = require('../model/user');
+const serviceModel = require('../model/service');
 require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcrypt');
@@ -147,7 +148,7 @@ exports.resendOtp = async (req, res, next) => {
         const expiresAt = new Date(Date.now() + 10 * 60000);
 
     user.otp = otp;
-    user.expiresAt = expiresAt;
+    user.otpExpiresAt = expiresAt;
 
     await user.save();
 
@@ -163,7 +164,7 @@ exports.resendOtp = async (req, res, next) => {
         html: resetPasswordTemplate(user.fullName, otp),
     }
 
-    await sendMail(emailOptions);
+    await sendBrevoEmail(emailOptions);
 
     res.status(200).json({
         message: 'Please check your email to verify your account',
@@ -268,7 +269,20 @@ exports.login = async (req, res, next) => {
     try {
         const {emailOrPhoneNumber, password} = req.body;
 
-        const user = await userModel.findOne({ $or: [{ email: emailOrPhoneNumber.toLowerCase().trim() }, { phoneNumber: emailOrPhoneNumber.trim() }] });
+        const identifier = emailOrPhoneNumber?.trim();
+
+if (!identifier || !password) {
+    return next({
+        message: "Email or phone number and password are required",
+        statusCode: 400
+    });
+}
+
+const query = identifier.includes('@')
+    ? { email: identifier.toLowerCase() }
+    : { phoneNumber: identifier };
+
+const user = await userModel.findOne(query);
 
         if (!user) {
             return res.status(404).json({
@@ -283,7 +297,7 @@ exports.login = async (req, res, next) => {
       });
     }
 
-    if (user.isVerified == false) {
+    if (user.isVerified !== true) {
       return next({
         message: "Please verify your email before logging in",
         statusCode: 400,
@@ -385,42 +399,121 @@ exports.changePassword = async (req, res, next) => {
     }
 };
 
-exports.selectRole = async (req, res, next) => {
+exports.WhatAreYouLOokingFor = async (req, res, next) => {
     try {
-        const {id} = req.user;
+        const { id } = req.user;
 
         if (!id) {
             return res.status(401).json({
-                message: 'Unauthorized'
+                message: Unauthorized
             })
         }
-        
+
         const checkUser = await userModel.findById(id);
-        
+
         if (!checkUser) {
             return next({
-        statusCode: 404,
-        message: "User not found",
-      });
+                message: "User not found",
+                statusCode: 404
+            })
         }
 
-        const {role} = req.body;
+        const { searchingFor } = req.body;
 
         const data = {
-            role
+            searchingFor
         }
 
-        await userModel.findByIdAndUpdate(id, { role }, { new: true });
+        await userModel.findByIdAndUpdate(id, {searchingFor}, { new: true});
 
-        res.status(201).json({
-            message: "Role selected successfully",
-            data
+        res.status(200).json({
+            message: 'Selected Successfully'
         })
     } catch (error) {
+       return next({
+        message: error.message,
+        statusCode: 500
+       }) 
+    }
+}
+
+exports.selectRole = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id) {
+            return res.status(401).json({
+                message: "Unauthorized",
+            });
+        }
+
+        const checkUser = await userModel.findById(id);
+
+        if (!checkUser) {
             return next({
-                message: error.message,
-                statusCode: 500
-            })
+                statusCode: 404,
+                message: "User not found",
+            });
+        }
+
+        let role;
+
+        if (checkUser.searchingFor === "findAHome") {
+            role = req.body.roleForHome;
+
+            if (!role) {
+                return res.status(400).json({
+                    message: "role For Home is required",
+                });
+            }
+
+            await userModel.findByIdAndUpdate(id, { roleForHome: role, roleForJob: null, category: null }, { new: true });
+
+        } else if (checkUser.searchingFor === "findWork") {
+            const {roleForJob, category} = req.body;
+
+            if (!roleForJob) {
+                return res.status(400).json({
+                    message: "role For Job is required",
+                });
+            }
+
+            if (!category) {
+                return next({
+                    message: "Category should not be empty",
+                    statusCode: 400
+                })
+            }
+            if(roleForJob === ''){
+                return next({
+                    message: "role For Job should not be empty",
+                    statusCode: 400
+                })
+            }
+            await userModel.findByIdAndUpdate(id, { roleForJob: role , category: role, roleForHome: null, role: category}, { new: true });
+
+        } else {
+            return res.status(400).json({
+                message: "Invalid searchingFor value",
+            });
+        }
+
+        const data = await userModel.findByIdAndUpdate(
+            id,
+            { role },
+            { new: true }
+        );
+
+        return res.status(200).json({
+            message: "Role selected successfully",
+            data,
+        });
+
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500,
+        });
     }
 };
 
@@ -502,6 +595,45 @@ exports.getUser = async (req, res, next) => {
             img
         })
     }catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+};
+
+exports.myServices = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if(!id) {
+            return next({
+                message: "Unauthorised",
+                statusCode: 400
+            })
+        }
+
+        const userExist = await userModel.findById({ id })
+
+        if(!userExist) {
+            return next({
+                message: "User not found",
+                statusCode: 400
+            })
+        }
+        const category = userExist.category;
+
+        const {service, engagement, description, area, cityState, rate, rateType, whatsIncluded} = req.body;
+
+        if(!service || !engagement || !description || !area || !cityState || !rate || !rateType || !whatsIncluded) {
+            return next({
+                message: "All fields are required",
+                statusCode: 400
+            })
+        }
+
+
+    }catch(error) { 
         return next({
             message: error.message,
             statusCode: 500

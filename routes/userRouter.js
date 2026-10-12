@@ -1,7 +1,7 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser} = require('../controller/userController');
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor } = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
-const upload = require('../config/multer');
+const upload = require('../middleware/multer');
 
 const router = require('express').Router();
 
@@ -515,5 +515,7 @@ router.put('/updateUser', authenticate, upload.single('image'), updateUser);
  */
 
 router.get('/getUser', authenticate, getUser)
+
+router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
 
 module.exports = router

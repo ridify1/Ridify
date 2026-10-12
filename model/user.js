@@ -38,10 +38,28 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: null
     },
-    role: {
+    roleForHome: {
         type: String,
         enum: ['user', 'admin', 'landlord', 'agent', 'realtor'],
         default: 'user'
+    },
+    Category: {
+        type: String,
+        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'null'],
+        default: 'Electrician'
+    },
+    roleForJob: {
+        type: String,
+        enum: ['jobSeeker', 'employer'],
+        default: 'jobSeeker'
+    },
+    role: {
+        type: String
+    },
+    searchingFor: {
+        type: String,
+        enum: ['findAHome', 'findWork'],
+        default: 'findAHome'
     },
     image: {
         type: String,
