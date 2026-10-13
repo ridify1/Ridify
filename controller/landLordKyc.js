@@ -4,6 +4,7 @@ const express = require('express')
 const cloudinary = require('../config/cloudinary')
 const propertyModel = require('../model/propertyUpload')
 const fs = require('fs')
+const mongoose = require('mongoose')
 
 exports.landLordKyc = async (req, res, next) => {
     try {
@@ -286,4 +287,121 @@ exports.getPropertyByLandLord = async (req, res, next) => {
             statusCode: 500
         })
     }
-}
+};
+
+exports.updatePropertyUpload = async (req, res, next) => {
+    const newFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
+
+    try {
+        const { id } = req.user;
+
+        if (!id) {
+            cleanup(newFiles);
+            return next({ message: 'User not authenticated', statusCode: 401 });
+        }
+
+        const { propertyId } = req.params;
+
+        if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            cleanup(newFiles);
+            return next({ message: 'A valid property ID is required', statusCode: 400 });
+        }
+
+        const property = await propertyModel.findById(propertyId);
+        if (!property) {
+            cleanup(newFiles);
+            return next({ message: 'Property not found', statusCode: 404 });
+        }
+
+        // ownership check (this was the line that crashed)
+        if (property.landLordId.toString() !== id) {
+            cleanup(newFiles);
+            return next({
+                message: 'Unauthorized: You can only update your own property',
+                statusCode: 403
+            });
+        }
+
+        const kyc = await kycModel.findOne({ landLordId: id, kycVerified: true });
+        if (!kyc) {
+            cleanup(newFiles);
+            return next({
+                message: 'KYC not verified. Please complete KYC verification before updating property.',
+                statusCode: 403
+            });
+        }
+
+        const {
+            title, propertyType, beds, baths, area, description,
+            state, city, streetAddress, rent, availability
+        } = req.body;
+
+        const propertyData = {};
+
+        const simpleFields = {
+            title, propertyType, beds, baths, area, description,
+            state, city, streetAddress, availability
+        };
+        for (const [key, value] of Object.entries(simpleFields)) {
+            if (value !== undefined && value !== '') propertyData[key] = value;
+        }
+
+        if (rent !== undefined && rent !== '') {
+            const rentValue = Number(String(rent).replace(/,/g, ''));
+            if (!Number.isFinite(rentValue) || rentValue <= 0) {
+                cleanup(newFiles);
+                return next({
+                    message: 'Rent must be a valid number, e.g. 2000000',
+                    statusCode: 400
+                });
+            }
+            propertyData.rent = rentValue;
+        }
+
+        if (req.body.amenities !== undefined) {
+            const amenities = parseList(req.body.amenities);
+            if (amenities.length === 0) {
+                cleanup(newFiles);
+                return next({ message: 'Amenities cannot be empty', statusCode: 400 });
+            }
+            propertyData.amenities = amenities;
+        }
+
+        // Only replace the gallery if new images were actually sent
+        let oldPublicIds = [];
+        if (newFiles.length > 0) {
+            const urls = [];
+            const publicIds = [];
+            for (const file of newFiles) {
+                const result = await cloudinary.uploader.upload(file.path, {
+                    folder: 'Ridify/propertyUpload',
+                });
+                urls.push(result.secure_url);
+                publicIds.push(result.public_id);
+                fs.unlinkSync(file.path);
+            }
+            propertyData.gallery = urls;
+            propertyData.galleryPublicId = publicIds;
+            oldPublicIds = property.galleryPublicId || [];
+        }
+
+        const updatedProperty = await propertyModel.findByIdAndUpdate(
+            propertyId,
+            propertyData,
+            { new: true, runValidators: true }
+        );
+
+        // Delete old Cloudinary images only after the DB update succeeded
+        for (const pid of oldPublicIds) {
+            try { await cloudinary.uploader.destroy(pid); } catch (_) {}
+        }
+
+        res.status(200).json({
+            message: 'Property updated successfully',
+            data: updatedProperty
+        });
+    } catch (error) {
+        cleanup(newFiles);
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
