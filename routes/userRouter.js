@@ -516,6 +516,49 @@ router.put('/updateUser', authenticate, upload.single('image'), updateUser);
 
 router.get('/getUser', authenticate, getUser)
 
+/**
+ * @swagger
+ * /api/v1/user/whatAreYouLookingFor:
+ *   post:
+ *     tags:
+ *       - User
+ *     summary: Set what the user is searching for
+ *     description: Saves the authenticated user's search preference (what they are looking for) on their profile
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - searchingFor
+ *             properties:
+ *               searchingFor:
+ *                 type: string
+ *                 example: apartment
+ *                 description: What the user is looking for. Use a value your user schema accepts.
+ *     responses:
+ *       200:
+ *         description: Preference saved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Selected Successfully
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
+
 router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
 
 module.exports = router
