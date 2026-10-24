@@ -16,7 +16,7 @@ const { loginValidator } = require('../middleware/validator')
  * /api/v1/admin/adminLogin:
  *   post:
  *     tags:
- *       - User
+ *       - Admin
  *     summary: Log in a user
  *     description: Authenticates a user with an email or phone number and password, and returns a JWT token. The account is locked for 30 minutes after 5 failed login attempts.
  *     requestBody:
@@ -92,7 +92,7 @@ router.post('/adminLogin', loginValidator , login)
  * /api/v1/admin/getKyc:
  *   get:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Get all landlord KYC records
  *     description: Retrieves all landlord KYC records along with the landlord's full name, email, and phone number. Only accessible to authenticated admins.
  *     security:
@@ -153,7 +153,7 @@ router.get('/getKyc', authenticate, getAllLandLordKyc)
  * /api/v1/admin/getKyc/{kycId}:
  *   get:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Get a landlord KYC record by ID
  *     description: Retrieves a single landlord KYC record by its ID, along with the landlord's full name, email, and phone number. Only accessible to authenticated admins.
  *     security:
@@ -220,7 +220,7 @@ router.get('/getKyc/:kycId', authenticate, getKycById)
  * /api/v1/admin/updateKycStatus/{kycId}:
  *   put:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Update a landlord KYC verification status
  *     description: Sets the verification status of a landlord KYC record to verified or not verified. Returns the updated record with the landlord's full name, email, and phone number. Only accessible to authenticated admins.
  *     security:
@@ -300,7 +300,7 @@ router.put('/updateKycStatus/:kycId', authenticate, updateKycStatus)
  * /api/v1/admin/deleteKyc/{kycId}:
  *   delete:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Delete a landlord KYC record
  *     description: Deletes a landlord KYC record by its ID and sends the landlord an email notifying them that their KYC could not be verified. Returns the deleted record. Only accessible to authenticated admins.
  *     security:
@@ -356,7 +356,7 @@ router.delete('/deleteKyc/:kycId', authenticate, deleteKyc)
  * /api/v1/admin/getVerifiedKyc:
  *   get:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Get all verified landlord KYC records
  *     description: Retrieves all landlord KYC records where kycVerified is true, sorted by newest first, along with the landlord's full name, email, and phone number. Only accessible to authenticated admins.
  *     security:
@@ -425,7 +425,7 @@ router.get('/getVerifiedKyc', authenticate, getVerifiedKyc)
  * /api/v1/admin/getUnverifiedKyc:
  *   get:
  *     tags:
- *       - Landlord KYC
+ *       - Admin
  *     summary: Get all unverified landlord KYC records
  *     description: Retrieves all landlord KYC records where kycVerified is false, sorted by newest first, along with the landlord's full name, email, and phone number. Only accessible to authenticated admins.
  *     security:
@@ -494,7 +494,7 @@ router.get('/getUnverifiedKyc', authenticate, getUnverifiedKyc)
  * /api/v1/admin/getAllUsers:
  *   get:
  *     tags:
- *       - User
+ *       - Admin
  *     summary: Get all users
  *     description: Retrieves all registered users with the password field excluded. Only accessible to authenticated admins.
  *     security:
@@ -552,7 +552,7 @@ router.get('/getAllUsers', authenticate, getAllUsers)
  * /api/v1/admin/deleteUser/{userId}:
  *   delete:
  *     tags:
- *       - User
+ *       - Admin
  *     summary: Delete a user (soft delete)
  *     description: Deactivates a user account by marking it as deleted and recording who deleted it, when, and why. The user's session is cleared and they are emailed the reason. The record is kept for audit purposes. Admins cannot delete their own account. Only accessible to authenticated admins.
  *     security:
