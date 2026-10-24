@@ -142,7 +142,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
 
 /**
  * @swagger
- * /api/v1/property/propertyUpload:
+ * /api/v1/landlord/propertyUpload:
  *   post:
  *     tags:
  *       - Property
