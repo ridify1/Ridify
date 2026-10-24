@@ -459,18 +459,31 @@ exports.selectRole = async (req, res, next) => {
         let role;
 
         if (checkUser.searchingFor === "findAHome") {
-            role = req.body.roleForHome;
+            const {roleForHome, categoryForHome} = req.body;
 
-            if (!role) {
+            if (!roleForHome) {
                 return res.status(400).json({
                     message: "role For Home is required",
                 });
             }
 
-            await userModel.findByIdAndUpdate(id, { roleForHome: role, roleForJob: null, category: null }, { new: true });
+            if (!categoryForHome) {
+                return next({
+                    message: "Category should not be empty",
+                    statusCode: 400
+                })
+            }
+            if(roleForHome === ''){
+                return next({
+                    message: "role For Home should not be empty",
+                    statusCode: 400
+                })
+            }
+
+            await userModel.findByIdAndUpdate(id, { roleForHome: roleForHome , categoryForHome: categoryForHome, roleForJob: null, categoryForJob: null, role: categoryForHome}, { new: true });
 
         } else if (checkUser.searchingFor === "findWork") {
-            const {roleForJob, category} = req.body;
+            const {roleForJob, categoryForJob} = req.body;
 
             if (!roleForJob) {
                 return res.status(400).json({
@@ -490,7 +503,7 @@ exports.selectRole = async (req, res, next) => {
                     statusCode: 400
                 })
             }
-            await userModel.findByIdAndUpdate(id, { roleForJob: role , category: role, roleForHome: null, role: category}, { new: true });
+            await userModel.findByIdAndUpdate(id, { roleForJob: roleForJob , categoryForJob: categoryForJob, roleForHome: null, categoryForHome: null, role: categoryForHome}, { new: true });
 
         } else {
             return res.status(400).json({
