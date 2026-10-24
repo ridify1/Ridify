@@ -43,10 +43,15 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin', 'landlord', 'agent', 'realtor'],
         default: 'user'
     },
-    Category: {
+    CategoryForJob: {
         type: String,
         enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'null'],
         default: 'Electrician'
+    },
+    categoryForHome: {
+        type: String,
+        enum: ['apartment', 'studio', 'serviced', 'shop'],
+        default: 'apartment'
     },
     roleForJob: {
         type: String,
@@ -79,7 +84,27 @@ const userSchema = new mongoose.Schema({
     },
     lockUntil: {
         type: Date
-    }
+    },
+    isDeleted: {
+  type: Boolean,
+  default: false,
+  index: true
+},
+deletedAt: {
+  type: Date,
+  default: null
+},
+deletedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'User',
+  default: null
+},
+deletionReason: {
+  type: String,
+  trim: true,
+  maxlength: 500,
+  default: null
+}
 }, {timeStamp: true})
 
 const user = mongoose.model('users', userSchema);

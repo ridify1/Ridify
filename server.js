@@ -7,6 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const cors = require('cors');
 const landLordRouter = require('./routes/landLordKyc')
+const adminRouter = require('./routes/admin')
 
 app.use(express.json());
 app.use(cors({origin: '*'}));
@@ -69,6 +70,8 @@ app.use('/api/v1/documentation', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/v1/user', userRouter);
 
 app.use('/api/v1/landlord', landLordRouter);
+
+app.use('/api/v1/admin', adminRouter);
 
 app.use((req, res, next) => {
     next({
