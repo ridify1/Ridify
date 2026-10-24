@@ -578,6 +578,16 @@ exports.getUser = async (req, res, next) => {
             })
         }
 
+        const isAdmin = req.user.role === 'admin'
+        const isOwner = req.user._id.toString() === req.params.id
+
+        if (!isAdmin && !isOwner) {
+        return next({
+            message: 'Access denied',
+            statusCode: 403
+        })
+        }
+
         const checkUser = await userModel.findById(id);
 
         if (!checkUser) {

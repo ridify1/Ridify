@@ -3,7 +3,7 @@ const mongoose = require('mongoose')
 const landLordKycSchema = new mongoose.Schema({
      landLordId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
+        ref: 'users',
         required: true
     },
     fullLegalName: {
@@ -60,6 +60,15 @@ const landLordKycSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    verifiedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: null
+    },
+    verifiedAt: {
+        type: Date,
+        default: null
+    }
 }, {timestamps: true})
 
 const landLordKyc = mongoose.model('landLordKyc',landLordKycSchema);
