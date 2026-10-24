@@ -142,12 +142,12 @@ router.post('/landlord-kyc', authenticate, upload.fields([
 
 /**
  * @swagger
- * /api/v1/landlord/propertyUpload:
+ * /api/v1/property/propertyUpload:
  *   post:
  *     tags:
- *       - Landlord KYC and Property Upload
- *     summary: Upload a property
- *     description: Creates a new property listing with gallery images for the authenticated user. Only landlords, admins, agents and realtors with a verified KYC can upload properties, and a user can upload more than one property.
+ *       - Property
+ *     summary: Upload a new property
+ *     description: Creates a property listing with up to 5 gallery images, which are uploaded to Cloudinary. The authenticated user must have a verified landlord KYC record and an allowed role (landlord, admin, agent, or realtor). All fields are required, and at least one amenity and one gallery image must be provided. The request must be sent as multipart/form-data.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -167,56 +167,63 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *               - city
  *               - streetAddress
  *               - rent
+ *               - category
  *               - availability
  *               - amenities
  *               - gallery
  *             properties:
  *               title:
  *                 type: string
- *                 example: Spacious 3 Bedroom Apartment
+ *                 example: Spacious 3 Bedroom Apartment in Lekki
  *               propertyType:
  *                 type: string
  *                 example: apartment
- *                 description: Use a value your property schema accepts
+ *               category:
+ *                 type: string
+ *                 example: rent
  *               beds:
  *                 type: integer
  *                 example: 3
  *               baths:
  *                 type: integer
  *                 example: 2
+ *                 description: Number of bathrooms
  *               area:
- *                 type: string
- *                 example: 120 sqm
+ *                 type: number
+ *                 example: 120
+ *                 description: Property size (for example in square metres)
  *               description:
  *                 type: string
- *                 example: A bright apartment close to schools and shopping centres
+ *                 example: A bright, well-finished apartment close to the main road with 24/7 power.
  *               state:
  *                 type: string
  *                 example: Lagos
  *               city:
  *                 type: string
- *                 example: Ikeja
+ *                 example: Lekki
  *               streetAddress:
  *                 type: string
- *                 example: 45 Allen Avenue
+ *                 example: 12 Admiralty Way
  *               rent:
- *                 type: number
- *                 example: 2000000
- *                 description: Plain number. Commas are accepted, but words such as "2 million" are rejected.
+ *                 type: string
+ *                 example: "2000000"
+ *                 description: Must be a positive number. Commas are allowed and stripped (for example 2,000,000).
  *               availability:
  *                 type: string
+ *                 enum: [available, not available]
  *                 example: available
- *                 description: Use a value your property schema accepts
  *               amenities:
  *                 type: array
+ *                 minItems: 1
  *                 items:
  *                   type: string
- *                 example:
- *                   - cctv
- *                   - security
- *                 description: Send as repeated fields, a comma-separated string, or a JSON array string. Values must match the schema enum.
+ *                   enum: ['24/7 power', water, pool, gym, parking, cctv, furnished, bq, elevator, serviced, wifi, security, playground, clubhouse, laundry, garden, balcony, fireplace, storage, 'pet friendly']
+ *                 example: [wifi, pool, parking]
+ *                 description: At least one amenity is required.
  *               gallery:
  *                 type: array
+ *                 minItems: 1
+ *                 maxItems: 5
  *                 items:
  *                   type: string
  *                   format: binary
@@ -235,18 +242,24 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                 data:
  *                   type: object
  *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 665f2a1e8a1b2c3d4e5f6b01
  *                     landLordId:
  *                       type: string
- *                       example: 6ab0f2ffa675b9e38dc41623
+ *                       example: 665f1b9e8a1b2c3d4e5f6a70
  *                     landLordKycId:
  *                       type: string
- *                       example: 6ab1a3c4a675b9e38dc41700
+ *                       example: 665f1c2e8a1b2c3d4e5f6a7b
  *                     title:
  *                       type: string
- *                       example: Spacious 3 Bedroom Apartment
+ *                       example: Spacious 3 Bedroom Apartment in Lekki
  *                     propertyType:
  *                       type: string
  *                       example: apartment
+ *                     category:
+ *                       type: string
+ *                       example: rent
  *                     beds:
  *                       type: integer
  *                       example: 3
@@ -254,20 +267,20 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                       type: integer
  *                       example: 2
  *                     area:
- *                       type: string
- *                       example: 120 sqm
+ *                       type: number
+ *                       example: 120
  *                     description:
  *                       type: string
- *                       example: A bright apartment close to schools and shopping centres
+ *                       example: A bright, well-finished apartment close to the main road with 24/7 power.
  *                     state:
  *                       type: string
  *                       example: Lagos
  *                     city:
  *                       type: string
- *                       example: Ikeja
+ *                       example: Lekki
  *                     streetAddress:
  *                       type: string
- *                       example: 45 Allen Avenue
+ *                       example: 12 Admiralty Way
  *                     rent:
  *                       type: number
  *                       example: 2000000
@@ -278,29 +291,23 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                       type: array
  *                       items:
  *                         type: string
- *                       example:
- *                         - cctv
- *                         - security
+ *                       example: [wifi, pool, parking]
  *                     gallery:
  *                       type: array
  *                       items:
  *                         type: string
- *                       example:
- *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
- *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img2.jpg
+ *                       example: [https://res.cloudinary.com/demo/image/upload/v1/Ridify/propertyUpload/img1.jpg]
  *                     galleryPublicId:
  *                       type: array
  *                       items:
  *                         type: string
- *                       example:
- *                         - Ridify/propertyUpload/img1
- *                         - Ridify/propertyUpload/img2
+ *                       example: [Ridify/propertyUpload/img1]
  *       400:
- *         description: Missing required fields, invalid rent, or no gallery image provided
+ *         description: A required field is missing, rent is not a valid positive number, or no gallery image was provided
  *       401:
- *         description: User not authenticated or token is missing or invalid
+ *         description: Missing, invalid, or expired authentication token
  *       403:
- *         description: KYC not verified, or only landlords, admins, agents and realtors can upload properties
+ *         description: Landlord KYC is not verified, or the user's role is not allowed to upload properties
  *       404:
  *         description: User not found
  *       500:
