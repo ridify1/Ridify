@@ -203,14 +203,14 @@ exports.propertyUpload = async (req, res, next) => {
 
         const {
             title, propertyType, beds, baths, area, description,
-            state, city, streetAddress, rent, availability
+            state, city, streetAddress, rent, availability, category
         } = req.body;
 
         const amenities = parseList(req.body.amenities);
 
         if (
             !title || !propertyType || !beds || !baths || !area || !description ||
-            !state || !city || !streetAddress || !rent || !availability ||
+            !state || !city || !streetAddress || !rent ||!category || !availability ||
             amenities.length === 0
         ) {
             cleanup(galleryFiles);
@@ -260,6 +260,7 @@ exports.propertyUpload = async (req, res, next) => {
             description,
             state,
             city,
+            category,
             streetAddress,
             rent: rentValue,
             availability,

@@ -70,6 +70,11 @@ const propertyUploadSchema = new mongoose.Schema({
         enum: ['available', 'not available'],
         required: true
     },
+    category: {
+        type: String,
+        enum: ['apartment', 'studio', 'serviced', 'shop'],
+        default: null
+    },
     gallery: [{
         type: [String],
         required: true,
