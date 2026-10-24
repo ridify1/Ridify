@@ -369,8 +369,8 @@ router.post('/changePassword',authenticate, changePassword);
  *   post:
  *     tags:
  *       - User
- *     summary: Select a role and category
- *     description: Sets the authenticated user's role and category based on what they are searching for. If the user is searching for a home (searchingFor is findAHome), roleForHome and categoryForHome are required and the job fields are cleared. If the user is searching for work (searchingFor is findWork), roleForJob and categoryForJob are required and the home fields are cleared. The user's role is set to the selected category.
+ *     summary: Select a role
+ *     description: Sets the authenticated user's role based on what they are searching for. If the user's saved searchingFor value is findAHome, roleForHome is required, the user's role is set to it, and the job fields are cleared. If it is findWork, roleForJob and categoryForJob are required, the user's role is set to categoryForJob, and roleForHome is cleared. The fields required depend on the user's saved searchingFor value, not on anything in the request.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -383,11 +383,7 @@ router.post('/changePassword',authenticate, changePassword);
  *               roleForHome:
  *                 type: string
  *                 example: tenant
- *                 description: Required when the user's searchingFor is findAHome
- *               categoryForHome:
- *                 type: string
- *                 example: tenant
- *                 description: Required when the user's searchingFor is findAHome
+ *                 description: Required when the user's searchingFor is findAHome. Also becomes the user's role.
  *               roleForJob:
  *                 type: string
  *                 example: driver
@@ -395,7 +391,7 @@ router.post('/changePassword',authenticate, changePassword);
  *               categoryForJob:
  *                 type: string
  *                 example: driver
- *                 description: Required when the user's searchingFor is findWork
+ *                 description: Required when the user's searchingFor is findWork. Also becomes the user's role.
  *     responses:
  *       200:
  *         description: Role selected successfully
@@ -424,9 +420,7 @@ router.post('/changePassword',authenticate, changePassword);
  *                       example: findAHome
  *                     roleForHome:
  *                       type: string
- *                       example: tenant
- *                     categoryForHome:
- *                       type: string
+ *                       nullable: true
  *                       example: tenant
  *                     roleForJob:
  *                       type: string
@@ -440,7 +434,7 @@ router.post('/changePassword',authenticate, changePassword);
  *                       type: string
  *                       example: tenant
  *       400:
- *         description: Missing or empty role or category, or the user's searchingFor value is invalid
+ *         description: Missing or empty roleForHome, roleForJob, or categoryForJob, or the user's searchingFor value is invalid
  *       401:
  *         description: Missing, invalid, or expired authentication token
  *       404:

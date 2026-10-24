@@ -459,7 +459,7 @@ exports.selectRole = async (req, res, next) => {
         let role;
 
         if (checkUser.searchingFor === "findAHome") {
-            const {roleForHome, categoryForHome} = req.body;
+            const {roleForHome} = req.body;
 
             if (!roleForHome) {
                 return res.status(400).json({
@@ -467,12 +467,6 @@ exports.selectRole = async (req, res, next) => {
                 });
             }
 
-            if (!categoryForHome) {
-                return next({
-                    message: "Category should not be empty",
-                    statusCode: 400
-                })
-            }
             if(roleForHome === ''){
                 return next({
                     message: "role For Home should not be empty",
@@ -480,7 +474,7 @@ exports.selectRole = async (req, res, next) => {
                 })
             }
 
-            await userModel.findByIdAndUpdate(id, { roleForHome: roleForHome , categoryForHome: categoryForHome, roleForJob: null, categoryForJob: null, role: categoryForHome}, { new: true });
+            await userModel.findByIdAndUpdate(id, { roleForHome: roleForHome , roleForJob: null, categoryForJob: null, role: roleForHome}, { new: true });
 
         } else if (checkUser.searchingFor === "findWork") {
             const {roleForJob, categoryForJob} = req.body;
@@ -491,7 +485,7 @@ exports.selectRole = async (req, res, next) => {
                 });
             }
 
-            if (!category) {
+            if (!categoryForJob) {
                 return next({
                     message: "Category should not be empty",
                     statusCode: 400
@@ -503,7 +497,7 @@ exports.selectRole = async (req, res, next) => {
                     statusCode: 400
                 })
             }
-            await userModel.findByIdAndUpdate(id, { roleForJob: roleForJob , categoryForJob: categoryForJob, roleForHome: null, categoryForHome: null, role: categoryForHome}, { new: true });
+            await userModel.findByIdAndUpdate(id, { roleForJob: roleForJob , categoryForJob: categoryForJob, roleForHome: null, role: categoryForJob}, { new: true });
 
         } else {
             return res.status(400).json({
