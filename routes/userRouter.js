@@ -369,8 +369,8 @@ router.post('/changePassword',authenticate, changePassword);
  *   post:
  *     tags:
  *       - User
- *     summary: Select user role
- *     description: Sets the role for the authenticated user
+ *     summary: Select a role and category
+ *     description: Sets the authenticated user's role and category based on what they are searching for. If the user is searching for a home (searchingFor is findAHome), roleForHome and categoryForHome are required and the job fields are cleared. If the user is searching for work (searchingFor is findWork), roleForJob and categoryForJob are required and the home fields are cleared. The user's role is set to the selected category.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -379,15 +379,25 @@ router.post('/changePassword',authenticate, changePassword);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - role
  *             properties:
- *               role:
+ *               roleForHome:
+ *                 type: string
+ *                 example: tenant
+ *                 description: Required when the user's searchingFor is findAHome
+ *               categoryForHome:
+ *                 type: string
+ *                 example: tenant
+ *                 description: Required when the user's searchingFor is findAHome
+ *               roleForJob:
  *                 type: string
  *                 example: driver
- *                 description: The role to assign to the user
+ *                 description: Required when the user's searchingFor is findWork
+ *               categoryForJob:
+ *                 type: string
+ *                 example: driver
+ *                 description: Required when the user's searchingFor is findWork
  *     responses:
- *       201:
+ *       200:
  *         description: Role selected successfully
  *         content:
  *           application/json:
@@ -400,11 +410,39 @@ router.post('/changePassword',authenticate, changePassword);
  *                 data:
  *                   type: object
  *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 665f1b9e8a1b2c3d4e5f6a70
+ *                     fullName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     email:
+ *                       type: string
+ *                       example: jane.doe@example.com
+ *                     searchingFor:
+ *                       type: string
+ *                       example: findAHome
+ *                     roleForHome:
+ *                       type: string
+ *                       example: tenant
+ *                     categoryForHome:
+ *                       type: string
+ *                       example: tenant
+ *                     roleForJob:
+ *                       type: string
+ *                       nullable: true
+ *                       example: null
+ *                     categoryForJob:
+ *                       type: string
+ *                       nullable: true
+ *                       example: null
  *                     role:
  *                       type: string
- *                       example: driver
+ *                       example: tenant
+ *       400:
+ *         description: Missing or empty role or category, or the user's searchingFor value is invalid
  *       401:
- *         description: Unauthorized
+ *         description: Missing, invalid, or expired authentication token
  *       404:
  *         description: User not found
  *       500:
