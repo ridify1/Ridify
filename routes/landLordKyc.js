@@ -145,7 +145,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  * /api/v1/landlord/propertyUpload:
  *   post:
  *     tags:
- *       - Property
+ *       - Landlord KYC and Property Upload
  *     summary: Upload a new property
  *     description: Creates a property listing with up to 5 gallery images, which are uploaded to Cloudinary. The authenticated user must have a verified landlord KYC record and an allowed role (landlord, admin, agent, or realtor). All fields are required, and at least one amenity and one gallery image must be provided. The request must be sent as multipart/form-data.
  *     security:
