@@ -586,7 +586,7 @@ exports.getUser = async (req, res, next) => {
         }
 
         const isAdmin = req.user.role === 'admin'
-        const isOwner = req.user._id.toString() === req.params.id
+        const isOwner = req.user._id === req.params.id
 
         if (!isAdmin && !isOwner) {
         return next({
