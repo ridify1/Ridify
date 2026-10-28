@@ -65,15 +65,40 @@ const propertyUploadSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    availability: {
+    status: {
         type: String,
-        enum: ['available', 'not available'],
+        enum: ['available', 'unAvailable', 'rented', 'sold'],
+        default: 'available',
         required: true
     },
     category: {
         type: String,
         enum: ['apartment', 'studio', 'serviced', 'shop'],
         default: null
+    },
+    archive: {
+        type: String,
+        type: Boolean,
+        default: false
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
+    },
+    deletedAt: {
+      type: Date,
+      default: null
+    },
+    deletedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
+    deletionReason: {
+      type: String,
+      trim: true,
+      maxlength: 500,
+      default: null
     },
     gallery: [{
         type: [String],

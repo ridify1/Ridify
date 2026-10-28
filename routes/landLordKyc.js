@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/multer');
-const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload} = require('../controller/landLordKyc');
+const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload, getPropertiesByLandLord, getPropertyByLandLord, archiveProperty, changeStatus, deleteProperty, unarchiveProperty, getAchivedPropertiesByLandLord, getPropertiesByStatus} = require('../controller/landLordKyc');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -553,5 +553,528 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  */
 
 router.put('/updateProperty/:propertyId', authenticate,upload.fields([{ name: 'gallery', maxCount: 5 }]), updatePropertyUpload);
+
+/**
+ * @swagger
+ * /api/v1/landlord/getProperties:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get my properties
+ *     description: Retrieves all properties uploaded by the authenticated landlord, sorted by newest first, with the total count. Archived and deleted properties are not included. If the landlord has no properties, a message is returned without a count or data.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully, or no properties to display
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab2c4d5a675b9e38dc41800
+ *                       title:
+ *                         type: string
+ *                         example: Spacious 3 Bedroom Apartment
+ *                       rent:
+ *                         type: number
+ *                         example: 2500000
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       streetAddress:
+ *                         type: string
+ *                         example: 45 Allen Avenue
+ *                       availability:
+ *                         type: string
+ *                         example: available
+ *                       gallery:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img2.jpg
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-06-20T10:15:30.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getProperties', authenticate, getPropertiesByLandLord)
+
+/**
+ * @swagger
+ * /api/v1/landlord/getSingleProperty/{propertyId}:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get a single property
+ *     description: Retrieves the full details of one property by its id. Deleted properties are not returned. Landlords can only view their own properties. Admins can view any property.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab2c4d5a675b9e38dc41800
+ *         description: The id of the property to retrieve
+ *     responses:
+ *       200:
+ *         description: Property retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab2c4d5a675b9e38dc41800
+ *                     landLordId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     landLordKycId:
+ *                       type: string
+ *                       example: 6ab1a3c4a675b9e38dc41700
+ *                     title:
+ *                       type: string
+ *                       example: Spacious 3 Bedroom Apartment
+ *                     propertyType:
+ *                       type: string
+ *                       example: apartment
+ *                     beds:
+ *                       type: integer
+ *                       example: 3
+ *                     baths:
+ *                       type: integer
+ *                       example: 2
+ *                     area:
+ *                       type: string
+ *                       example: 120 sqm
+ *                     description:
+ *                       type: string
+ *                       example: A bright apartment close to schools and shopping centres
+ *                     state:
+ *                       type: string
+ *                       example: Lagos
+ *                     city:
+ *                       type: string
+ *                       example: Ikeja
+ *                     streetAddress:
+ *                       type: string
+ *                       example: 45 Allen Avenue
+ *                     rent:
+ *                       type: number
+ *                       example: 2500000
+ *                     availability:
+ *                       type: string
+ *                       example: available
+ *                     amenities:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - cctv
+ *                         - security
+ *                     gallery:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
+ *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img2.jpg
+ *                     galleryPublicId:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - Ridify/propertyUpload/img1
+ *                         - Ridify/propertyUpload/img2
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-06-20T10:15:30.000Z
+ *       400:
+ *         description: Invalid user ID or missing property ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: You can only access your own property information
+ *       404:
+ *         description: Property not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getSingleProperty/:propertyId', authenticate, getPropertyByLandLord)
+
+/**
+ * @swagger
+ * /api/v1/landlord/archive/{propertyId}:
+ *   patch:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Archive a property
+ *     description: Archives a property listing owned by the authenticated landlord. Archived properties are no longer returned in the landlord's property list. The record is kept in the database. Landlords can only archive their own properties.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab2c4d5a675b9e38dc41800
+ *         description: The id of the property to archive
+ *     responses:
+ *       200:
+ *         description: Property archived successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property archived successfully
+ *       400:
+ *         description: Missing or invalid property ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: Property not found, already deleted, or not owned by the user
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/archive/:propertyId', authenticate, archiveProperty)
+
+/**
+ * @swagger
+ * /api/v1/landlord/unarchive/{propertyId}:
+ *   patch:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Unarchive a property
+ *     description: Restores an archived property listing owned by the authenticated landlord, so it appears in the landlord's property list again. Landlords can only unarchive their own properties.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab2c4d5a675b9e38dc41800
+ *         description: The id of the property to unarchive
+ *     responses:
+ *       200:
+ *         description: Property unarchived successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property unarchived successfully
+ *       400:
+ *         description: Missing or invalid property ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: Property not found or not owned by the user
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/unarchive/:propertyId', authenticate, unarchiveProperty)
+
+/**
+ * @swagger
+ * /api/v1/landlord/getArchivedProperties:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get archived properties
+ *     description: Returns all archived properties that belong to the authenticated landlord, newest first. Deleted properties are not included. If the landlord has no archived properties, a message is returned with no data.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Archived properties retrieved successfully, or no archived properties to display
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Archived Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab2c4d5a675b9e38dc41800
+ *                       title:
+ *                         type: string
+ *                         example: Spacious 3 Bedroom Apartment
+ *                       rent:
+ *                         type: number
+ *                         example: 2000000
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       streetAddress:
+ *                         type: string
+ *                         example: 45 Allen Avenue
+ *                       availability:
+ *                         type: string
+ *                         example: available
+ *                       gallery:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img2.jpg
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getArchivedProperties', authenticate, getAchivedPropertiesByLandLord)
+
+/**
+ * @swagger
+ * /api/v1/landlord/changeStatus/{propertyId}:
+ *   patch:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Change a property's status
+ *     description: Updates the status of a property listing owned by the authenticated landlord. Landlords can only change the status of their own properties.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab2c4d5a675b9e38dc41800
+ *         description: The id of the property whose status should change
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 example: available
+ *                 description: The new status. Use a value your property schema accepts.
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Status updated successfully
+ *       400:
+ *         description: Missing or invalid property ID, or missing or invalid status
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: Property not found or not owned by the user
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/changeStatus/:propertyId', authenticate, changeStatus)
+
+/**
+ * @swagger
+ * /api/v1/landlord/getByStatus:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get properties by status
+ *     description: Returns the authenticated landlord's properties that match the given status. Archived and deleted properties are not included. If no property matches, a 404 is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: available
+ *         description: The status to filter by. Use a value your property schema accepts.
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab2c4d5a675b9e38dc41800
+ *                       title:
+ *                         type: string
+ *                         example: Spacious 3 Bedroom Apartment
+ *                       rent:
+ *                         type: number
+ *                         example: 2000000
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       streetAddress:
+ *                         type: string
+ *                         example: 45 Allen Avenue
+ *                       status:
+ *                         type: string
+ *                         example: available
+ *                       gallery:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, or status is missing
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: No property found with that status
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getByStatus', authenticate, getPropertiesByStatus)
+
+/**
+ * @swagger
+ * /api/v1/landlord/deleteProperty/{propertyId}:
+ *   delete:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Delete a property
+ *     description: Soft-deletes a property listing owned by the authenticated landlord. The record is kept in the database and marked as deleted, with the deletion time, the user who deleted it and an optional reason. Deleted properties are no longer returned. Landlords can only delete their own properties.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab2c4d5a675b9e38dc41800
+ *         description: The id of the property to delete
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: Property has been sold
+ *                 description: Optional reason for deleting the property
+ *     responses:
+ *       200:
+ *         description: Property deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property deleted successfully
+ *       400:
+ *         description: Missing or invalid property ID, or reason is not a string
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: Property not found, already deleted, or not owned by the user
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteProperty/:propertyId', authenticate, deleteProperty)
 
 module.exports = router;
