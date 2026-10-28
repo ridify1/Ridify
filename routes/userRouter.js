@@ -2,6 +2,7 @@ const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
+const { dashboard } = require('../controller/userDashboard');
 
 const router = require('express').Router();
 
@@ -591,6 +592,6 @@ router.get('/getUser', authenticate, getUser)
  */
 router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
 
-router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
+router.get('/dashboard', authenticate, dashboard)
 
 module.exports = router

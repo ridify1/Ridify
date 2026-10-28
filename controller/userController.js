@@ -74,7 +74,7 @@ exports.createUser = async (req, res, next) => {
             html: signUpTemplate(user.fullName, OTP),
         };
 
-        await sendMail(emailOptions);
+        await sendBrevoEmail(emailOptions);
 
         await userModel.create(user);
 
@@ -206,7 +206,7 @@ exports.forgotPassword = async (req, res, next) => {
             html: resetPasswordTemplate(user.fullName, otp),
         }
 
-        await sendMail(emailOptions);
+        await sendBrevoEmail(emailOptions);
         res.status(200).json({
             message: 'Please check your email to reset your password'
         })
@@ -252,7 +252,7 @@ exports.resetPassword = async (req, res, next) => {
             html: resetPasswordSuccessfulTemplate(user.fullName),
         }
 
-        await sendMail(emailOptions);
+        await sendBrevoEmail(emailOptions);
 
         res.status(200).json({
             message: 'Password reset successful'
@@ -386,7 +386,7 @@ exports.changePassword = async (req, res, next) => {
             html: changePasswordSuccessfulTemplate(checkUser.fullName),
         }
 
-        await sendMail(emailOptions);
+        await sendBrevoEmail(emailOptions);
 
         res.status(200).json({
             message: 'Password Changed Successfully'
@@ -618,42 +618,3 @@ exports.getUser = async (req, res, next) => {
         })
     }
 };
-
-exports.myServices = async (req, res, next) => {
-    try {
-        const { id } = req.user;
-
-        if(!id) {
-            return next({
-                message: "Unauthorised",
-                statusCode: 400
-            })
-        }
-
-        const userExist = await userModel.findById({ id })
-
-        if(!userExist) {
-            return next({
-                message: "User not found",
-                statusCode: 400
-            })
-        }
-        const category = userExist.category;
-
-        const {service, engagement, description, area, cityState, rate, rateType, whatsIncluded} = req.body;
-
-        if(!service || !engagement || !description || !area || !cityState || !rate || !rateType || !whatsIncluded) {
-            return next({
-                message: "All fields are required",
-                statusCode: 400
-            })
-        }
-
-
-    }catch(error) { 
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
-    }
-}
