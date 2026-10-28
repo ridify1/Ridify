@@ -607,7 +607,7 @@ router.delete('/deleteUser/:userId', authenticate, deleteOneUser)
  * /api/v1/admin/allProperty:
  *   get:
  *     tags:
- *       - Property
+ *       - Admin
  *     summary: Get all property uploads
  *     description: Retrieves every property upload, sorted by newest first, and returns the total count. Only accessible to authenticated admins.
  *     security:
@@ -660,7 +660,7 @@ router.get('/allProperty', authenticate, getAllPropertyUpload)
  * /api/v1/admin/propertiesByLandLord/{landLordId}:
  *   get:
  *     tags:
- *       - Property
+ *       - Admin
  *     summary: Get properties by landlord
  *     description: Retrieves all non-archived properties uploaded by a specific landlord, sorted by newest first, with the total count. Only accessible to authenticated admins.
  *     security:
@@ -739,7 +739,7 @@ router.get('/propertiesByLandLord/:landLordId', authenticate, getPropertiesByLan
  * /api/v1/admin/deleteProperty/{propertyId}:
  *   delete:
  *     tags:
- *       - Property
+ *       - Admin
  *     summary: Delete a property (soft delete)
  *     description: Marks a property as deleted and records who deleted it, when, and optionally why. The record is kept rather than removed from the database. Properties that are already deleted cannot be deleted again. Only accessible to authenticated admins.
  *     security:
