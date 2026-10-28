@@ -526,7 +526,7 @@ exports.selectRole = async (req, res, next) => {
 
 exports.updateUser = async (req, res, next) => {
     try {
-        const {id} = req.user;
+        const {id } = req.user;
 
     if (!id) {
         return res.status(401).json({

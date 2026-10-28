@@ -123,6 +123,7 @@ exports.getLandLordKyc = async (req, res, next) => {
         }
         const kyc = await kycModel.findOne({ landLordId: id });
         const admin = await userModel.findById(id);
+        
         if (!kyc) {
             return next({
                 message: "KYC not found for this user",
@@ -203,14 +204,14 @@ exports.propertyUpload = async (req, res, next) => {
 
         const {
             title, propertyType, beds, baths, area, description,
-            state, city, streetAddress, rent, availability, category
+            state, city, streetAddress, rent, status, category
         } = req.body;
 
         const amenities = parseList(req.body.amenities);
 
         if (
             !title || !propertyType || !beds || !baths || !area || !description ||
-            !state || !city || !streetAddress || !rent ||!category || !availability ||
+            !state || !city || !streetAddress || !rent ||!category ||
             amenities.length === 0
         ) {
             cleanup(galleryFiles);
@@ -263,7 +264,6 @@ exports.propertyUpload = async (req, res, next) => {
             category,
             streetAddress,
             rent: rentValue,
-            availability,
             amenities,
             gallery: galleryUpload.urls,
             galleryPublicId: galleryUpload.publicIds
@@ -276,17 +276,6 @@ exports.propertyUpload = async (req, res, next) => {
     } catch (error) {
         cleanup(galleryFiles);
         return next({ message: error.message, statusCode: 500 });
-    }
-};
-
-exports.getPropertyByLandLord = async (req, res, next) => {
-    try {
-
-    }catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
     }
 };
 
@@ -309,13 +298,14 @@ exports.updatePropertyUpload = async (req, res, next) => {
         }
 
         const property = await propertyModel.findById(propertyId);
+        const admin = await userModel.findById(id);
+
         if (!property) {
             cleanup(newFiles);
             return next({ message: 'Property not found', statusCode: 404 });
         }
 
-        // ownership check (this was the line that crashed)
-        if (property.landLordId.toString() !== id) {
+        if (admin.role !== 'admin' && property.landLordId.toString() !== id) {
             cleanup(newFiles);
             return next({
                 message: 'Unauthorized: You can only update your own property',
@@ -334,14 +324,14 @@ exports.updatePropertyUpload = async (req, res, next) => {
 
         const {
             title, propertyType, beds, baths, area, description,
-            state, city, streetAddress, rent, availability
+            state, city, streetAddress, rent
         } = req.body;
 
         const propertyData = {};
 
         const simpleFields = {
             title, propertyType, beds, baths, area, description,
-            state, city, streetAddress, availability
+            state, city, streetAddress
         };
         for (const [key, value] of Object.entries(simpleFields)) {
             if (value !== undefined && value !== '') propertyData[key] = value;
@@ -368,7 +358,6 @@ exports.updatePropertyUpload = async (req, res, next) => {
             propertyData.amenities = amenities;
         }
 
-        // Only replace the gallery if new images were actually sent
         let oldPublicIds = [];
         if (newFiles.length > 0) {
             const urls = [];
@@ -392,7 +381,7 @@ exports.updatePropertyUpload = async (req, res, next) => {
             { new: true, runValidators: true }
         );
 
-        // Delete old Cloudinary images only after the DB update succeeded
+        
         for (const pid of oldPublicIds) {
             try { await cloudinary.uploader.destroy(pid); } catch (_) {}
         }
@@ -406,3 +395,346 @@ exports.updatePropertyUpload = async (req, res, next) => {
         return next({ message: error.message, statusCode: 500 });
     }
 };
+
+exports.getPropertiesByLandLord = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        
+        if (!id) {
+            return next({
+                message: 'Invalid User ID',
+                statusCode: 400
+            })
+        }
+
+        const properties = await propertyModel.find({ landLordId: req.user.id, archive: { $ne: true }, isDeleted: { $ne: true } }).select('title rent city state streetAddress availability gallery createdAt').sort({ createdAt: -1 }).lean()
+
+        if (properties.length === 0) {
+            return res.status(200).json({
+                message: 'No Properties to display'
+            })
+        }
+
+        res.status(200).json({
+            message: 'Properties retrieved successfully',
+            count: properties.length,
+            data: properties
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getPropertyByLandLord = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        
+        if (!id) {
+            return next({
+                message: 'Invalid User ID',
+                statusCode: 400
+            })
+        }
+
+        const { propertyId } = req.params;
+
+        if (!mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: `Invalid Property ID`,
+                statusCode: 400
+            })
+        }
+
+        const property = await propertyModel.findOne({_id: propertyId, isDeleted: { $ne: true }})
+
+if (!property) {
+  return next({ message: 'Property not found', statusCode: 404 })
+}
+
+const isAdmin = req.user.role === 'admin'
+const isOwner = property.landLordId.toString() === req.user.id
+
+if (!isAdmin && !isOwner) {
+  return next({
+    message: 'Unauthorized: You can only access your own property information',
+    statusCode: 403
+  })
+}
+
+        res.status(200).json({
+            message: 'Property retrieved successfully',
+            data: property
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.archiveProperty = async (req, res, next) => {
+    try {
+        const { id }  = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Unauthorised',
+                statusCode: 404
+            })
+        }
+
+        const { propertyId } = req.params
+
+        if(!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: "Property not found",
+                statusCode: 400
+            })
+        }
+
+        const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId, landLordId: req.user.id },
+      { archive: true },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found or not owned by you',
+                statusCode: 404
+            });
+        }
+
+        res.status(200).json({
+            message: 'property archived successfully'
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+exports.unarchiveProperty = async (req, res, next) => {
+    try {
+        const { id }  = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Unauthorised',
+                statusCode: 404
+            })
+        }
+
+        const { propertyId } = req.params
+
+        if(!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: "Property not found",
+                statusCode: 400
+            })
+        }
+
+        const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId, landLordId: req.user.id },
+      { archive: false },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found or not owned by you',
+                statusCode: 404
+            });
+        }
+
+        res.status(200).json({
+            message: 'property unarchived successfully'
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getAchivedPropertiesByLandLord = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        
+        if (!id) {
+            return next({
+                message: 'Invalid User ID',
+                statusCode: 400
+            })
+        }
+
+        const properties = await propertyModel.find({ landLordId: req.user.id, archive: { $ne: false }, isDeleted: { $ne: true } }).select('title rent city state streetAddress availability gallery createdAt').sort({ createdAt: -1 }).lean()
+
+        if (properties.length === 0) {
+            return res.status(200).json({
+                message: 'No Properties to display'
+            })
+        }
+
+        return res.status(200).json({
+            message: properties.length
+                ? 'Archived properties retrieved successfully'
+                : 'No archived properties to display',
+            count: properties.length,
+            data: properties
+        });
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.changeStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Invalid User Id',
+                statusCode: 404
+            })
+        }
+
+        const { status } = req.body;
+
+        const { propertyId } = req.params;
+        
+        if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: 'Invalid Property Id'
+            })
+        }
+
+         const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId, landLordId: req.user.id },
+      { status },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found or not owned by you',
+                statusCode: 404
+            });
+        }
+
+        return res.status(200).json({
+            message: 'status updated succesfully'
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getPropertiesByStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.isValidObjectId(id)) {
+            return next({
+                message: "User not found or User Id is not valid",
+                statusCode: 400
+            })
+        }
+
+        const { status } = req.query;
+
+        if (!status) {
+            return next({ message: 'Status is required', statusCode: 400 });
+        }
+
+        const properties = await propertyModel
+            .find({
+                landLordId: id,
+                status,
+                archive: { $ne: true },
+                isDeleted: { $ne: true }
+            })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (properties.length === 0) {
+            return next({
+                message: `No property with status "${status}" found`,
+                statusCode: 404
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Properties retrieved successfully',
+            count: properties.length,
+            data: properties
+        });
+        
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.deleteProperty = async (req, res, next) => {
+    try {
+        const { id }  = req.user;
+
+        if (!id) {
+            return next({
+                message: 'User not found',
+                statusCode: 404
+            })
+        }
+
+        const { propertyId } = req.params
+        const { reason } = req.body || {}
+
+        if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({ message: 'A valid property ID is required', statusCode: 400 });
+        }
+
+        if (reason !== undefined && typeof reason !== 'string') {
+      return next({ message: 'Reason must be a string', statusCode: 400 })
+    }
+
+        const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId, landLordId: req.user.id , isDeleted: { $ne: true } },
+      {
+        isDeleted: true,
+        deletedAt: new Date(),
+        deletedBy: req.user.id,
+        deletionReason: reason
+    },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found, already deleted, or not owned by you',
+                statusCode: 404
+            });
+        }
+
+
+        res.status(200).json({
+            message: 'property deleted successfully'
+        })
+    } catch (error) {
+        
+    }
+}

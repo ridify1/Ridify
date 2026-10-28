@@ -1,5 +1,6 @@
  const landLordKycModel = require('../model/landLordKyc');
  const userModel = require('../model/user');
+ const propertyModel = require('../model/propertyUpload')
  const bcrypt = require('bcrypt');
  const jwt = require('jsonwebtoken');
  const mongoose = require('mongoose');
@@ -7,84 +8,87 @@
  const { sendBrevoEmail } = require("../utils/brevo");
  const { kycDeniedTemplate, deleteUserTemplate } = require("../utils/emailTemplate");
  const sendMail = require("../utils/nodemailer");
+const { propertyUpload } = require('./landLordKyc');
 
 
- exports.login = async (req, res, next) => {
-  try {
-    const { emailOrPhoneNumber, password } = req.body
+exports.login = async (req, res, next) => {
+    try {
+        const {emailOrPhoneNumber, password} = req.body;
 
-    const identifier = emailOrPhoneNumber?.trim()
+        const identifier = emailOrPhoneNumber?.trim();
 
-    if (!identifier || !password) {
-      return next({
-        message: 'Email or phone number and password are required',
+if (!identifier || !password) {
+    return next({
+        message: "Email or phone number and password are required",
         statusCode: 400
-      })
-    }
+    });
+}
 
-    const query = identifier.includes('@')
-      ? { email: identifier.toLowerCase() }
-      : { phoneNumber: identifier }
+const query = identifier.includes('@')
+    ? { email: identifier.toLowerCase() }
+    : { phoneNumber: identifier };
 
-    const user = await userModel.findOne(query)
+const user = await userModel.findOne(query);
 
-    if (!user) {
-      return next({ message: 'Invalid credentials', statusCode: 401 })
-    }
+        if (!user) {
+            return res.status(404).json({
+                message: `User with email or phone number ${emailOrPhoneNumber} not found`
+            })
+        }
 
-    if (user.lockUntil && user.lockUntil > Date.now()) {
+        if (user.lockUntil && user.lockUntil > Date.now()) {
       return next({
         message: `Account locked until ${user.lockUntil}`,
-        statusCode: 403
-      })
-    }
-
-    const isPasswordCorrect = await bcrypt.compare(password, user.password)
-
-    if (!isPasswordCorrect) {
-      user.loginAttempts += 1
-      if (user.loginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000)
-        user.loginAttempts = 0
-      }
-      await user.save()
-      return next({ message: 'Invalid credentials', statusCode: 401 })
+        statusCode: 403,
+      });
     }
 
     if (user.isVerified !== true) {
       return next({
-        message: 'Please verify your email before logging in',
-        statusCode: 403
-      })
+        message: "Please verify your email before logging in",
+        statusCode: 400,
+      });
     }
 
-    if(req.user.role !== 'admin'){
+    if(user.role !== 'admin'){
             return next({
                 message: `Access denied: Admins only`,
                 statusCode: 403
             })
         }
 
-    await userModel.findByIdAndUpdate(user._id, {
-      loginAttempts: 0,
-      lockUntil: null
-    })
+        const checkPasssword = await bcrypt.compare(password, user.password);
 
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    )
+        if (!checkPasssword) {
+            user.loginAttempts += 1;
+      if (user.loginAttempts >= 5) {
+        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
+        user.loginAttempts = 0;
+      }
+      await user.save();
+      return res.status(400).json({
+        message: "Invalid credentials",
+      });
+        }
 
-    await redisClient.set(`user_${user.id}`, token, { EX: 86400 })
+        await userModel.findByIdAndUpdate(user._id, { loginAttempts: 0, lockUntil: null });
 
-    return res.status(200).json({
-      message: 'Login successful',
-      token
-    })
-  } catch (error) {
-    return next({ message: error.message, statusCode: 500 })
-  }
+        const token = jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: '1h'});
+
+        redisClient.del(`user_${user.id}`);
+
+        redisClient.set(`user_${user.id}`, token, { EX: 86400 });
+
+        res.status(200).json({
+            message: 'Login successful',
+            token
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
 }
 
  exports.getAllLandLordKyc = async (req, res, next) => {
@@ -394,25 +398,25 @@
             })
         }
 
+        
         if (req.user.role !== 'admin') {
             return next({
                 message: `Access denied: Admins only`,
                 statusCode: 403
             })
         }
-        
-        const users = await userModel.find().select('-password -loginAttempts -lockUntil -__v').sort({ createdAt: -1 }).lean()
+        const user = await userModel.find().select('-password -loginAttempts -lockUntil -__v').sort({ createdAt: -1 }).lean()
 
         if(!user || user.length === 0){
             return next({
                 message: `No User found`,
-                statusCode: 404
+                statusCode: 200
             })
         }
 
         res.status(200).json({
             message: `Users retrieved successfully`,
-            count: users.length,
+            count: user.length,
             data: user
         })
     }catch(error){
@@ -515,3 +519,155 @@
         })
     }
  }
+
+ exports.getAllPropertyUpload = async (req, res, next) => {
+    try{
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: `Invalid User Id`,
+                statusCode: 400
+            })
+        }
+
+        if (req.user.role !== 'admin') {
+            return next({
+                message: `Access denied: Admins only`,
+                statusCode: 403
+            })
+        }
+        
+        const property = await propertyModel.find().sort({ createdAt: -1 }).lean()
+
+        if(!property || propertyUpload.length === 0){
+            return next({
+                message: `No Property found`,
+                statusCode: 200
+            })
+        }
+
+        res.status(200).json({
+            message: `Properties retrieved successfully`,
+            count: property.length,
+            data: property
+        })
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+ }
+
+ exports.getPropertiesByLandLord = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        
+        if (!id) {
+            return next({
+                message: 'Invalid User ID',
+                statusCode: 400
+            })
+        }
+        const { landLordId } = req.params;
+
+        if (!mongoose.isValidObjectId(landLordId)) {
+    return next({ message: 'Invalid landlord ID', statusCode: 400 });
+}
+
+        const admin = await userModel.findById(id);
+
+        if(admin?.role !== 'admin') {
+            return next({
+                message: "Unauthorized: Admins Only",
+                statusCode: 403
+            })
+        }
+
+        const properties = await propertyModel.find({ landLordId: landLordId, archive: { $ne: true } }).select('title rent city state streetAddress availability gallery createdAt').sort({ createdAt: -1 }).lean()
+
+        if (properties.length === 0) {
+            return res.status(200).json({
+                message: 'No Properties to display'
+            })
+        }
+
+        res.status(200).json({
+            message: 'Properties retrieved successfully',
+            count: properties.length,
+            data: properties
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.deleteProperty = async (req, res, next) => {
+    try {
+        const { id, role } = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Unauthorized',
+                statusCode: 401
+            });
+        }
+
+        if (role !== 'admin') {
+            return next({
+                message: 'Access denied: Admins only',
+                statusCode: 403
+            });
+        }
+
+        const { propertyId } = req.params;
+        const { reason } = req.body || {};
+
+        if (!mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: 'Invalid property id',
+                statusCode: 400
+            });
+        }
+
+        if (reason !== undefined && typeof reason !== 'string') {
+            return next({
+                message: 'Reason must be a string',
+                statusCode: 400
+            });
+        }
+
+        const update = {
+            isDeleted: true,
+            deletedAt: new Date(),
+            deletedBy: id,
+            ...(reason ? { deletionReason: reason.trim() } : {})
+        };
+
+        const property = await propertyModel.findOneAndUpdate(
+            { _id: propertyId, isDeleted: { $ne: true } },
+            update,
+            { new: true, runValidators: true }
+        );
+
+        if (!property) {
+            return next({
+                message: 'Property not found or already deleted',
+                statusCode: 404
+            });
+        }
+
+        res.status(200).json({
+            message: 'Property deleted successfully'
+        });
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        });
+    }
+};

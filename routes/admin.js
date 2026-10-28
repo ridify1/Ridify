@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers } = require('../controller/admin')
+const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty } = require('../controller/admin')
 const { authenticate } = require('../middleware/auth')
 const { loginValidator } = require('../middleware/validator')
 
@@ -601,5 +601,191 @@ router.get('/getAllUsers', authenticate, getAllUsers)
  */
 
 router.delete('/deleteUser/:userId', authenticate, deleteOneUser)
+
+/**
+ * @swagger
+ * /api/v1/admin/allProperty:
+ *   get:
+ *     tags:
+ *       - Property
+ *     summary: Get all property uploads
+ *     description: Retrieves every property upload, sorted by newest first, and returns the total count. Only accessible to authenticated admins.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 665f1b9e8a1b2c3d4e5f6a70
+ *                       landLordId:
+ *                         type: string
+ *                         example: 665f1b9e8a1b2c3d4e5f6a11
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-06-20T10:15:30.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: Missing, invalid, or expired authentication token
+ *       403:
+ *         description: Access denied, the user is not an admin
+ *       404:
+ *         description: No property found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/allProperty', authenticate, getAllPropertyUpload)
+
+/**
+ * @swagger
+ * /api/v1/admin/propertiesByLandLord/{landLordId}:
+ *   get:
+ *     tags:
+ *       - Property
+ *     summary: Get properties by landlord
+ *     description: Retrieves all non-archived properties uploaded by a specific landlord, sorted by newest first, with the total count. Only accessible to authenticated admins.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: landLordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 665f1b9e8a1b2c3d4e5f6a11
+ *         description: The ID of the landlord whose properties should be retrieved
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully, or no properties to display
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 1
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 665f1b9e8a1b2c3d4e5f6a70
+ *                       title:
+ *                         type: string
+ *                         example: Spacious 3-bedroom flat
+ *                       rent:
+ *                         type: number
+ *                         example: 1500000
+ *                       city:
+ *                         type: string
+ *                         example: Lagos
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       streetAddress:
+ *                         type: string
+ *                         example: 12 Admiralty Way, Lekki
+ *                       availability:
+ *                         type: string
+ *                         example: available
+ *                       gallery:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                           example: https://res.cloudinary.com/sample/image.jpg
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-06-20T10:15:30.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: Missing, invalid, or expired authentication token
+ *       403:
+ *         description: Access denied, the user is not an admin
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/propertiesByLandLord/:landLordId', authenticate, getPropertiesByLandLord)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteProperty/{propertyId}:
+ *   delete:
+ *     tags:
+ *       - Property
+ *     summary: Delete a property (soft delete)
+ *     description: Marks a property as deleted and records who deleted it, when, and optionally why. The record is kept rather than removed from the database. Properties that are already deleted cannot be deleted again. Only accessible to authenticated admins.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 665f1b9e8a1b2c3d4e5f6a70
+ *         description: The ID of the property to delete
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 example: Listing contains false information
+ *                 description: Optional. Stored on the record as the deletion reason.
+ *     responses:
+ *       200:
+ *         description: Property deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property deleted successfully
+ *       400:
+ *         description: Invalid property ID or reason is not a string
+ *       401:
+ *         description: Missing, invalid, or expired authentication token
+ *       403:
+ *         description: Access denied, the user is not an admin
+ *       404:
+ *         description: Property not found or already deleted
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteProperty/:propertyId', authenticate, deleteProperty)
 
 module.exports = router;
