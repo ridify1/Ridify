@@ -623,7 +623,12 @@ exports.updateUser = async (req, res, next) => {
             data.fullName = fullName;
         }
 
+        console.log("Current directory:", process.cwd());
+console.log("File:", req.file);
+
         if (req.file) {
+            console.log("Path:", req.file.path);
+    console.log("Exists:", fs.existsSync(req.file.path));
             try {
                 const result = await cloudinary.uploader.upload(req.file.path);
                 data.image = result.secure_url;
@@ -640,6 +645,8 @@ exports.updateUser = async (req, res, next) => {
                 }
             }
         }
+        console.log(req.file);
+console.log(req.file.path);
 
         if (Object.keys(data).length === 0) {
             return res.status(400).json({ message: 'Nothing to update' });
