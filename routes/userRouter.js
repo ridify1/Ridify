@@ -315,7 +315,7 @@ router.post('/resetPassword', resetPassword);
  *                       example: Jane Doe
  *                     email:
  *                       type: string
- *                       example: jane.doe@example.com
+ *                       example: jane.doe@example.com or 8123456789
  *                     phoneNumber:
  *                       type: string
  *                       example: "8012345678"
@@ -406,12 +406,22 @@ router.post('/changePassword',authenticate, changePassword);
  *             properties:
  *               roleForHome:
  *                 type: string
+ *                 enum:
+ *                   - tenant
+ *                   - landlord
+ *                   - agent
+ *                   - realtor
  *                 example: landlord
- *                 description: Required when the user's searchingFor is findAHome. Use a value your user schema accepts.
+ *                 description: Required when the user's searchingFor is findAHome
  *               roleForJob:
  *                 type: string
+ *                 enum:
+ *                   - jobSeeker
+ *                   - hr
+ *                   - artisan
+ *                   - artisanEmployer
  *                 example: artisan
- *                 description: Required when the user's searchingFor is findWork. Use a value your user schema accepts.
+ *                 description: Required when the user's searchingFor is findWork
  *               categoryForArtisan:
  *                 type: string
  *                 example: plumber
@@ -458,7 +468,7 @@ router.post('/changePassword',authenticate, changePassword);
  *                       nullable: true
  *                       example: null
  *       400:
- *         description: Missing roleForHome, roleForJob or categoryForArtisan, or the user's searchingFor value is missing or not recognised
+ *         description: roleForHome or roleForJob is missing or not an allowed value, categoryForArtisan is missing for an artisan, or the user's searchingFor value is missing or not recognised
  *       401:
  *         description: User not authenticated or token is missing or invalid
  *       404:
@@ -579,7 +589,7 @@ router.get('/getUser', authenticate, getUser)
  *     tags:
  *       - User
  *     summary: Set what the user is searching for
- *     description: Saves the authenticated user's search preference (what they are looking for) on their profile
+ *     description: Saves the authenticated user's search preference (what they are looking for) on their profile. The value decides which dashboard the user sees and which role options they get next.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -593,8 +603,11 @@ router.get('/getUser', authenticate, getUser)
  *             properties:
  *               searchingFor:
  *                 type: string
- *                 example: apartment
- *                 description: What the user is looking for. Use a value your user schema accepts.
+ *                 enum:
+ *                   - findAHome
+ *                   - findWork
+ *                 example: findAHome
+ *                 description: What the user is looking for
  *     responses:
  *       200:
  *         description: Preference saved successfully
@@ -605,7 +618,15 @@ router.get('/getUser', authenticate, getUser)
  *               properties:
  *                 message:
  *                   type: string
- *                   example: Selected Successfully
+ *                   example: Selected successfully
+ *                 searchingFor:
+ *                   type: string
+ *                   enum:
+ *                     - findAHome
+ *                     - findWork
+ *                   example: findAHome
+ *       400:
+ *         description: searchingFor is missing or not one of findAHome or findWork
  *       401:
  *         description: User not authenticated or token is missing or invalid
  *       404:

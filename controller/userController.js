@@ -471,13 +471,15 @@ exports.changePassword = async (req, res, next) => {
     }
 };
 
+const SEARCHING_ROLES = ['findAHome', 'findWork'];  
+
 exports.WhatAreYouLOokingFor = async (req, res, next) => {
     try {
         const { id } = req.user;
 
         if (!id) {
             return res.status(401).json({
-                message: Unauthorized
+                message: 'Unauthorized'
             })
         }
 
@@ -492,25 +494,38 @@ exports.WhatAreYouLOokingFor = async (req, res, next) => {
 
         const { searchingFor } = req.body;
 
-        const data = {
-            searchingFor
+        if (!searchingFor || !SEARCHING_ROLES.includes(searchingFor)) {
+            return next({
+                    message: `What are you looking for is required and must be one of: ${SEARCHING_ROLES.join(', ')}`,
+                    statusCode: 400
+                });
         }
 
-        await userModel.findByIdAndUpdate(id, {searchingFor}, { new: true});
+        const updatedUser = await userModel.findByIdAndUpdate(
+            id,
+            { searchingFor },
+            { new: true }
+        );
 
-        res.status(200).json({
-            message: 'Selected Successfully'
-        })
+        if (!updatedUser) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Selected successfully',
+            searchingFor: updatedUser.searchingFor
+        });
+
     } catch (error) {
        return next({
         message: error.message,
         statusCode: 500
        }) 
     }
-}
+}                    
 
 const HOME_ROLES = ['tenant', 'landlord', 'agent', 'realtor'];   
-const JOB_ROLES = ['jobSeeker', 'hr', 'artisan', 'artisanEmployer'];                       
+const JOB_ROLES = ['jobSeeker', 'hr', 'artisan', 'artisanEmployer'];   
 
 exports.selectRole = async (req, res, next) => {
     try {

@@ -46,20 +46,20 @@ const userSchema = new mongoose.Schema({
     categoryForArtisan: {
         type: String,
         enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'null'],
-        default: 'Electrician'
+        default: null
     },
     roleForJob: {
         type: String,
         enum: ['jobSeeker', 'hr', 'artisan', 'artisanEmployer'],
-        default: 'jobSeeker'
+        default: null
     },
     role: {
         type: String
     },
     searchingFor: {
         type: String,
-        enum: ['findAHome', 'findWork'],
-        default: 'findAHome'
+        enum: ['findAHome', 'findWork' ],
+        default: null
     },
     image: {
         type: String,
