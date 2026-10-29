@@ -2,8 +2,28 @@ const userModel = require('../model/user')
 const express = require('express')
 const mongoose = require('mongoose')
 const serviceModel = require('../model/service')
+const kycModel = require('../model/artisanKyc')
+
+const ALLOWED_ROLES = ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'admin'];
+
+const cleanup = (files = []) => {
+    files.forEach((f) => {
+        try { fs.unlinkSync(f.path); } catch (_) {}
+    });
+};
+
+const parseList = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    const trimmed = String(value).trim();
+    if (trimmed.startsWith('[')) {
+        try { return JSON.parse(trimmed); } catch (_) {}
+    }
+    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+};
 
 exports.myServices = async (req, res, next) => {
+    const galleryFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
     try {
         const { id } = req.user;
 
@@ -13,6 +33,15 @@ exports.myServices = async (req, res, next) => {
                 statusCode: 400
             })
         }
+
+        const kyc = await kycModel.findOne({ landLordId: id, kycVerified: true });
+                if (!kyc) {
+                    cleanup(photoFiles);
+                    return next({
+                        message: 'KYC not verified. Please complete KYC verification before uploading property.',
+                        statusCode: 403
+                    });
+                }
 
         const userExist = await userModel.findById({ id })
 
@@ -54,7 +83,14 @@ exports.myServices = async (req, res, next) => {
                 fs.unlinkSync(file.path);
             }
             return { urls, publicIds }; 
-        }
+        };
+
+        const photoUpload = await uploadGroup(photoFiles);
+
+        const services = await serviceModel.create({
+            artisanId: id,
+            artisanKycId: kyc.id
+        })
 
     }catch(error) { 
         return next({
