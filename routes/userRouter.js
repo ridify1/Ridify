@@ -393,8 +393,8 @@ router.post('/changePassword',authenticate, changePassword);
  *   post:
  *     tags:
  *       - User
- *     summary: Select a role
- *     description: Sets the authenticated user's role based on what they are searching for. If the user's saved searchingFor value is findAHome, roleForHome is required, the user's role is set to it, and the job fields are cleared. If it is findWork, roleForJob and categoryForJob are required, the user's role is set to categoryForJob, and roleForHome is cleared. The fields required depend on the user's saved searchingFor value, not on anything in the request.
+ *     summary: Select the user's role
+ *     description: Saves the authenticated user's role based on what they are searching for. Users who selected "findAHome" must send roleForHome. Users who selected "findWork" must send roleForJob, and also categoryForArtisan when roleForJob is "artisan". The searchingFor preference must be set first through the whatAreYouLookingFor route.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -406,16 +406,16 @@ router.post('/changePassword',authenticate, changePassword);
  *             properties:
  *               roleForHome:
  *                 type: string
- *                 example: tenant
- *                 description: Required when the user's searchingFor is findAHome. Also becomes the user's role.
+ *                 example: landlord
+ *                 description: Required when the user's searchingFor is findAHome. Use a value your user schema accepts.
  *               roleForJob:
  *                 type: string
- *                 example: driver
- *                 description: Required when the user's searchingFor is findWork
- *               categoryForJob:
+ *                 example: artisan
+ *                 description: Required when the user's searchingFor is findWork. Use a value your user schema accepts.
+ *               categoryForArtisan:
  *                 type: string
- *                 example: driver
- *                 description: Required when the user's searchingFor is findWork. Also becomes the user's role.
+ *                 example: plumber
+ *                 description: Required only when roleForJob is artisan
  *     responses:
  *       200:
  *         description: Role selected successfully
@@ -432,7 +432,7 @@ router.post('/changePassword',authenticate, changePassword);
  *                   properties:
  *                     _id:
  *                       type: string
- *                       example: 665f1b9e8a1b2c3d4e5f6a70
+ *                       example: 6ab0f2ffa675b9e38dc41623
  *                     fullName:
  *                       type: string
  *                       example: Jane Doe
@@ -442,25 +442,25 @@ router.post('/changePassword',authenticate, changePassword);
  *                     searchingFor:
  *                       type: string
  *                       example: findAHome
+ *                     role:
+ *                       type: string
+ *                       example: landlord
  *                     roleForHome:
  *                       type: string
  *                       nullable: true
- *                       example: tenant
+ *                       example: landlord
  *                     roleForJob:
  *                       type: string
  *                       nullable: true
  *                       example: null
- *                     categoryForJob:
+ *                     categoryForArtisan:
  *                       type: string
  *                       nullable: true
  *                       example: null
- *                     role:
- *                       type: string
- *                       example: tenant
  *       400:
- *         description: Missing or empty roleForHome, roleForJob, or categoryForJob, or the user's searchingFor value is invalid
+ *         description: Missing roleForHome, roleForJob or categoryForArtisan, or the user's searchingFor value is missing or not recognised
  *       401:
- *         description: Missing, invalid, or expired authentication token
+ *         description: User not authenticated or token is missing or invalid
  *       404:
  *         description: User not found
  *       500:

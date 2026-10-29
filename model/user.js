@@ -43,14 +43,14 @@ const userSchema = new mongoose.Schema({
         enum: ['user', 'admin', 'landlord', 'agent', 'realtor'],
         default: 'user'
     },
-    categoryForJob: {
+    categoryForArtisan: {
         type: String,
         enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'null'],
         default: 'Electrician'
     },
     roleForJob: {
         type: String,
-        enum: ['jobSeeker', 'employer'],
+        enum: ['jobSeeker', 'hr', 'artisan', 'artisanEmployer'],
         default: 'jobSeeker'
     },
     role: {
