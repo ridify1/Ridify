@@ -282,6 +282,8 @@ if (!identifier || !password) {
         message: "Email or phone number and password are required",
         statusCode: 400
     });
+
+    console.log("identifier:", identifier)
 }
 
 const query = identifier.includes('@')
