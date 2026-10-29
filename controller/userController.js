@@ -509,90 +509,84 @@ exports.WhatAreYouLOokingFor = async (req, res, next) => {
     }
 }
 
+const HOME_ROLES = ['tenant', 'landlord', 'agent', 'realtor'];   
+const JOB_ROLES = ['jobSeeker', 'hr', 'artisan', 'artisanEmployer'];                       
+
 exports.selectRole = async (req, res, next) => {
     try {
         const { id } = req.user;
 
         if (!id) {
-            return res.status(401).json({
-                message: "Unauthorized",
-            });
+            return next({ message: 'User not authenticated', statusCode: 401 });
         }
 
-        const checkUser = await userModel.findById(id);
-
-        if (!checkUser) {
-            return next({
-                statusCode: 404,
-                message: "User not found",
-            });
+        const user = await userModel.findById(id);
+        if (!user) {
+            return next({ message: 'User not found', statusCode: 404 });
         }
 
-        let role;
+        let update;
 
-        if (checkUser.searchingFor === "findAHome") {
-            const {roleForHome} = req.body;
+        if (user.searchingFor === 'findAHome') {
+            const { roleForHome } = req.body;
 
-            if (!roleForHome) {
-                return res.status(400).json({
-                    message: "role For Home is required",
+            if (!roleForHome || !HOME_ROLES.includes(roleForHome)) {
+                return next({
+                    message: `roleForHome is required and must be one of: ${HOME_ROLES.join(', ')}`,
+                    statusCode: 400
                 });
             }
 
-            if(roleForHome === ''){
+            update = {
+                roleForHome,
+                roleForJob: null,
+                categoryForArtisan: null,
+                role: roleForHome
+            };
+        } else if (user.searchingFor === 'findWork') {
+            const { roleForJob, categoryForArtisan } = req.body;
+
+            if (!roleForJob || !JOB_ROLES.includes(roleForJob)) {
                 return next({
-                    message: "role For Home should not be empty",
+                    message: `roleForJob is required and must be one of: ${JOB_ROLES.join(', ')}`,
                     statusCode: 400
-                })
-            }
-
-            await userModel.findByIdAndUpdate(id, { roleForHome: roleForHome , roleForJob: null, categoryForJob: null, role: roleForHome}, { new: true });
-
-        } else if (checkUser.searchingFor === "findWork") {
-            const {roleForJob, categoryForJob} = req.body;
-
-            if (!roleForJob) {
-                return res.status(400).json({
-                    message: "role For Job is required",
                 });
             }
 
-            if (!categoryForJob) {
-                return next({
-                    message: "Category should not be empty",
-                    statusCode: 400
-                })
+            if (roleForJob === 'artisan' && !categoryForArtisan) {
+                return next({ message: 'categoryForArtisan is required for artisans', statusCode: 400 });
             }
-            if(roleForJob === ''){
-                return next({
-                    message: "role For Job should not be empty",
-                    statusCode: 400
-                })
-            }
-            await userModel.findByIdAndUpdate(id, { roleForJob: roleForJob , categoryForJob: categoryForJob, roleForHome: null, role: categoryForJob}, { new: true });
 
+            update = {
+                roleForJob,
+                roleForHome: null,
+                categoryForArtisan: roleForJob === 'artisan' ? categoryForArtisan : null,
+                role: roleForJob === 'artisan' ? categoryForArtisan : roleForJob
+            };
         } else {
-            return res.status(400).json({
-                message: "Invalid searchingFor value",
-            });
+            return next({ message: 'Invalid or missing searchingFor value', statusCode: 400 });
         }
 
-        const data = await userModel.findByIdAndUpdate(
-            id,
-            { role },
-            { new: true }
-        );
+        const updated = await userModel.findByIdAndUpdate(id, update, {
+            new: true,
+            runValidators: true
+        });
 
         return res.status(200).json({
-            message: "Role selected successfully",
-            data,
+            message: 'Role selected successfully',
+            data: {
+                _id: updated._id,
+                fullName: updated.fullName,
+                email: updated.email,
+                searchingFor: updated.searchingFor,
+                role: updated.role,
+                roleForHome: updated.roleForHome,
+                roleForJob: updated.roleForJob,
+                categoryForArtisan: updated.categoryForArtisan
+            }
         });
-
     } catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500,
-        });
+        return next({ message: error.message, statusCode: 500 });
     }
 };
 

@@ -34,7 +34,7 @@ exports.myServices = async (req, res, next) => {
             })
         }
 
-        const kyc = await kycModel.findOne({ landLordId: id, kycVerified: true });
+        const kyc = await kycModel.findOne({ ArtisanId: id, kycVerified: true });
                 if (!kyc) {
                     cleanup(photoFiles);
                     return next({
