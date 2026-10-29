@@ -9,6 +9,7 @@ const cors = require('cors');
 const landLordRouter = require('./routes/landLordKyc')
 const adminRouter = require('./routes/admin')
 const cookieParser = require('cookie-parser');
+const redisClient = require('./config/redis');
 
 app.use(express.json());
 app.use(cookieParser());
@@ -99,8 +100,10 @@ app.use((err, req, res, next) => {
 });
 
 const mongoose = require('mongoose');
-mongoose.connect(process.env.MONGODB_URI).then(() => {
+mongoose.connect(process.env.MONGODB_URI).then(async () => {
     console.log('Connected to Database');
+    await redisClient.connect();
+    redisClient.ping().then(console.log).catch(console.error);
     app.listen(PORT, () => {
         console.log(`Server is listening to Port: ${PORT}`);
     });
