@@ -2,6 +2,7 @@ const userModel = require('../model/user');
 const serviceModel = require('../model/service');
 require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose')
 const bcrypt = require('bcrypt');
 const { sendBrevoEmail } = require("../utils/brevo");
 const {
@@ -16,6 +17,11 @@ const jwt = require("jsonwebtoken");
 const redisClient = require("../config/redis");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
+const {
+    generateAccessToken,
+    generateRefreshToken,
+    REFRESH_TTL_SECONDS
+} = require('../utils/token');
 
 const generateOtp = () => otpGenerator.generate(6, {
     digits: true,
@@ -284,52 +290,71 @@ const query = identifier.includes('@')
 
 const user = await userModel.findOne(query);
 
-        if (!user) {
-            return res.status(404).json({
-                message: `User with email or phone number ${emailOrPhoneNumber} not found`
-            })
-        }
+const invalid = () =>
+            next({ message: 'Invalid credentials', statusCode: 401 });
+
+        if (!user) return invalid();
 
         if (user.lockUntil && user.lockUntil > Date.now()) {
+            const minutes = Math.ceil((user.lockUntil - Date.now()) / 60000);
       return next({
-        message: `Account locked until ${user.lockUntil}`,
+        message: `Account locked. Try again in ${minutes} minute(s).`,
         statusCode: 403,
-      });
-    }
-
-    if (user.isVerified !== true) {
-      return next({
-        message: "Please verify your email before logging in",
-        statusCode: 400,
       });
     }
 
         const checkPasssword = await bcrypt.compare(password, user.password);
 
         if (!checkPasssword) {
-            user.loginAttempts += 1;
-      if (user.loginAttempts >= 5) {
-        user.lockUntil = new Date(Date.now() + 30 * 60 * 1000);
-        user.loginAttempts = 0;
+            const updated = await userModel.findByIdAndUpdate(
+        user._id,
+        { $inc: { loginAttempts: 1 } },
+        { new: true }
+    )
+      if (updated.loginAttempts >= 5) {
+        await userModel.findByIdAndUpdate(user._id, {
+            lockUntil: new Date(Date.now() + 30 * 60 * 1000),
+            loginAttempts: 0
+        });
+
       }
-      await user.save();
-      return res.status(400).json({
-        message: "Invalid credentials",
-      });
+      return invalid();
         }
 
-        await userModel.findByIdAndUpdate(user._id, { loginAttempts: 0, lockUntil: null });
+        if (user.isVerified !== true) {
+      return next({
+        message: "Please verify your email before logging in",
+        statusCode: 400,
+      });
+    }
 
-        const token = jwt.sign({id: user._id, email: user.email, role: user.role}, process.env.JWT_SECRET, {expiresIn: '1h'});
+        if (user.loginAttempts > 0 || user.lockUntil) {
+            await userModel.findByIdAndUpdate(user._id, {
+                loginAttempts: 0,
+                lockUntil: null
+            });
+        }
 
-        redisClient.del(`user_${user.id}`);
+        const accessToken = generateAccessToken(user);
+const refreshToken = generateRefreshToken(user);
 
-        redisClient.set(`user_${user.id}`, token, { EX: 86400 });
+// set() overwrites, so you don't need del() first. Await it.
+await redisClient.set(`refresh_${user._id}`, refreshToken, { EX: REFRESH_TTL_SECONDS });
 
-        res.status(200).json({
-            message: 'Login successful',
-            token
-        })
+res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,                                  // JS can't read it (protects against XSS)
+    secure: process.env.NODE_ENV === 'production',   // HTTPS only in production
+    sameSite: 'strict',
+    maxAge: REFRESH_TTL_SECONDS * 1000
+});
+
+const { password: _pw, loginAttempts, lockUntil, ...safeUser } = user.toObject();
+
+return res.status(200).json({
+    message: 'Login successful',
+    accessToken,
+    data: safeUser
+});
     } catch (error) {
         return next({
             message: error.message,
@@ -337,6 +362,51 @@ const user = await userModel.findOne(query);
         })
     }
 }
+
+exports.refresh = async (req, res, next) => {
+    try {
+        const token = req.cookies.refreshToken;
+
+        if (!token) {
+            return res.status(401).json({ message: 'No refresh token' });
+        }
+
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET);
+        } catch (err) {
+            return res.status(401).json({ message: 'Invalid or expired refresh token' });
+        }
+
+        // The token must match the one stored in Redis
+        const stored = await redisClient.get(`refresh_${decoded.id}`);
+        if (!stored || stored !== token) {
+            return res.status(401).json({ message: 'Refresh token revoked' });
+        }
+
+        const user = await userModel.findById(decoded.id);
+        if (!user) {
+            return res.status(401).json({ message: 'User not found' });
+        }
+
+        // Rotation: issue a NEW refresh token and replace the old one
+        const newAccessToken = generateAccessToken(user);
+        const newRefreshToken = generateRefreshToken(user);
+
+        await redisClient.set(`refresh_${user._id}`, newRefreshToken, { EX: REFRESH_TTL_SECONDS });
+
+        res.cookie('refreshToken', newRefreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: REFRESH_TTL_SECONDS * 1000
+        });
+
+        return res.status(200).json({ accessToken: newAccessToken });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
 
 exports.changePassword = async (req, res, next) => {
     try {
@@ -526,53 +596,64 @@ exports.selectRole = async (req, res, next) => {
 
 exports.updateUser = async (req, res, next) => {
     try {
-        const {id } = req.user;
+        const { id } = req.user;
 
-    if (!id) {
-        return res.status(401).json({
-            message: 'Unauthorised'
-        })
-    }
-
-    const checkUser = await userModel.findById(id);
-
-    if (!checkUser) {
-        return res.status(404).json({
-            message: 'User not found'
-        })
-    }
-
-    const {fullName} = req.body;
-
-    const nameCheck = fullName.split(' ')
-
-        if (nameCheck.length < 2) {
-            return res.status(400).json({
-                message: 'Input a valid fullName'
-            })
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(401).json({ message: 'Unauthorised' });
         }
 
-    let result;
-    if (req.file) {
-      result = await cloudinary.uploader.upload(req.file.path);
-      fs.unlinkSync(req.file.path);
-    }
+        const checkUser = await userModel.findById(id);
 
-    const data = {
-        fullName: fullName || checkUser.fullName,
-        ...(result ? { image: result.secure_url, imagePublicId: result.public_id } : {})
-    }
+        if (!checkUser) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-    await userModel.findByIdAndUpdate(id, data, { new: true });
+        const data = {};
 
-    res.status(200).json({
-        message: `${checkUser.role} updated successfully`,
-        data
-    })
+        // Validate the name only if it was sent
+        if (req.body.fullName !== undefined) {
+            const fullName = req.body.fullName.trim().replace(/\s+/g, ' ');
+            const parts = fullName.split(' ');
+
+            if (parts.length < 2) {
+                return res.status(400).json({ message: 'Input a valid fullName' });
+            }
+            data.fullName = fullName;
+        }
+
+        if (req.file) {
+            try {
+                const result = await cloudinary.uploader.upload(req.file.path);
+                data.image = result.secure_url;
+                data.imagePublicId = result.public_id;
+
+                // Remove the old image from Cloudinary
+                if (checkUser.imagePublicId) {
+                    await cloudinary.uploader.destroy(checkUser.imagePublicId);
+                }
+            } finally {
+                // Always clean up the temp file, even if the upload failed
+                if (fs.existsSync(req.file.path)) {
+                    fs.unlinkSync(req.file.path);
+                }
+            }
+        }
+
+        if (Object.keys(data).length === 0) {
+            return res.status(400).json({ message: 'Nothing to update' });
+        }
+
+        const updatedUser = await userModel
+            .findByIdAndUpdate(id, data, { new: true })
+            .select('-password');
+
+        return res.status(200).json({
+            message: `${checkUser.role} updated successfully`,
+            data: updatedUser
+        });
     } catch (error) {
-        
+        return next({ message: error.message, statusCode: 500 });
     }
-
 };
 
 exports.getUser = async (req, res, next) => {
@@ -603,7 +684,7 @@ exports.getUser = async (req, res, next) => {
             })
         }
 
-        const info = {"fullname": checkUser.fullName, "email": checkUser.email, "phoneNumber": checkUser.phoneNumber}
+        const info = {"fullname": checkUser.fullName, "email": checkUser.email, "phoneNumber": checkUser.phoneNumber, "role": checkUser.role}
         const img = checkUser?.image;
 
         res.status(200).json({
@@ -616,5 +697,21 @@ exports.getUser = async (req, res, next) => {
             message: error.message,
             statusCode: 500
         })
+    }
+};
+
+exports.logout = async (req, res, next) => {
+    try {
+        res.clearCookie('refreshToken', {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict'
+        });
+
+        await redisClient.del(`refresh_${req.user.id}`);
+
+        return res.status(200).json({ message: 'Logged out' });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
     }
 };

@@ -1,4 +1,4 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor } = require('../controller/userController');
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout } = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
@@ -267,8 +267,8 @@ router.post('/resetPassword', resetPassword);
  *   post:
  *     tags:
  *       - User
- *     summary: User login
- *     description: Authenticates a user using email or phone number and password. Account will be locked for 30 minutes after 5 failed attempts.
+ *     summary: Log in a user
+ *     description: Logs in with an email or phone number and password. Returns an access token and sets a refresh token as an httpOnly cookie. After 5 failed attempts the account is locked for 30 minutes. The email must be verified before login.
  *     requestBody:
  *       required: true
  *       content:
@@ -281,13 +281,18 @@ router.post('/resetPassword', resetPassword);
  *             properties:
  *               emailOrPhoneNumber:
  *                 type: string
- *                 example: jane.doe@example.com or 8012345678
+ *                 example: jane.doe@example.com
  *               password:
  *                 type: string
  *                 example: P@ssword123
  *     responses:
  *       200:
  *         description: Login successful
+ *         headers:
+ *           Set-Cookie:
+ *             description: refreshToken cookie (httpOnly, sameSite strict, secure in production)
+ *             schema:
+ *               type: string
  *         content:
  *           application/json:
  *             schema:
@@ -296,15 +301,33 @@ router.post('/resetPassword', resetPassword);
  *                 message:
  *                   type: string
  *                   example: Login successful
- *                 token:
+ *                 accessToken:
  *                   type: string
  *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     email:
+ *                       type: string
+ *                       example: jane.doe@example.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "8012345678"
+ *                     role:
+ *                       type: string
+ *                       example: landlord
  *       400:
- *         description: Invalid credentials or email not verified
+ *         description: Missing fields, or email not verified
+ *       401:
+ *         description: Invalid credentials
  *       403:
- *         description: Account locked due to too many failed login attempts
- *       404:
- *         description: User not found
+ *         description: Account locked after too many failed attempts
  *       500:
  *         description: Internal server error
  */
@@ -592,6 +615,145 @@ router.get('/getUser', authenticate, getUser)
  */
 router.post('/whatAreYouLookingFor', authenticate, WhatAreYouLOokingFor)
 
+/**
+ * @swagger
+ * /api/v1/user/dashboard:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Get the user's dashboard
+ *     description: Returns dashboard content based on what the authenticated user is searching for. Users who selected "findAHome" receive a list of properties, and users who selected "findWork" receive a list of jobs. The preference is set through the whatAreYouLookingFor route.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Dashboard retrieved successfully. The shape of data depends on the type field (properties for findAHome, jobs for findWork).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Home dashboard retrieved successfully
+ *                 type:
+ *                   type: string
+ *                   enum:
+ *                     - findAHome
+ *                     - findWork
+ *                   example: findAHome
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab2c4d5a675b9e38dc41800
+ *                       title:
+ *                         type: string
+ *                         example: Spacious 3 Bedroom Apartment
+ *                       rent:
+ *                         type: number
+ *                         example: 2000000
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       gallery:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
+ *       400:
+ *         description: Invalid user ID, or the user's searchingFor value is missing or not recognised
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
 router.get('/dashboard', authenticate, dashboard)
+
+/**
+ * @swagger
+ * /api/v1/user/refresh:
+ *   post:
+ *     tags:
+ *       - User
+ *     summary: Refresh the access token
+ *     description: Issues a new access token using the refresh token stored in the httpOnly cookie. The refresh token is rotated, so a new refresh token replaces the old one in the cookie and in Redis, and the old one stops working. No Authorization header is needed.
+ *     parameters:
+ *       - in: cookie
+ *         name: refreshToken
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The refresh token set as an httpOnly cookie at login. The browser sends it automatically.
+ *     responses:
+ *       200:
+ *         description: Access token refreshed successfully
+ *         headers:
+ *           Set-Cookie:
+ *             description: The new rotated refreshToken cookie (httpOnly, sameSite strict, secure in production)
+ *             schema:
+ *               type: string
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 accessToken:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZhYjBmMmZm...
+ *       401:
+ *         description: No refresh token, invalid or expired refresh token, refresh token revoked, or user not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.post('/refresh', refresh); 
+
+/**
+ * @swagger
+ * /api/v1/user/logout:
+ *   post:
+ *     tags:
+ *       - User
+ *     summary: Log out the current user
+ *     description: Logs out the authenticated user by deleting their refresh token from Redis and clearing the refreshToken cookie. After this, the refresh token can no longer be used to get a new access token. The access token itself stays valid until it expires, so the client should discard it.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ *         headers:
+ *           Set-Cookie:
+ *             description: Clears the refreshToken cookie
+ *             schema:
+ *               type: string
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Logged out
+ *       401:
+ *         description: Token is missing, invalid or expired
+ *       500:
+ *         description: Internal server error
+ */
+
+router.post('/logout', authenticate, logout);
 
 module.exports = router

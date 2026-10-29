@@ -8,8 +8,10 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const cors = require('cors');
 const landLordRouter = require('./routes/landLordKyc')
 const adminRouter = require('./routes/admin')
+const cookieParser = require('cookie-parser');
 
 app.use(express.json());
+app.use(cookieParser());
 app.use(cors({origin: '*'}));
 
 const swaggerDefinition = {
