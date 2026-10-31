@@ -281,7 +281,7 @@ router.post('/resetPassword', resetPassword);
  *             properties:
  *               emailOrPhoneNumber:
  *                 type: string
- *                 example: jane.doe@example.com
+ *                 example: jane.doe@example.com or 8123456789
  *               password:
  *                 type: string
  *                 example: P@ssword123
