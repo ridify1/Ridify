@@ -163,7 +163,7 @@ router.post('/employerKyc', authenticate, upload.fields([
  * /api/v1/hr/getEmployerKyc:
  *   get:
  *     tags:
- *       - Employer KYC
+ *       - Employer/Hr Kyc
  *     summary: Get the authenticated user's employer KYC
  *     description: Returns the employer KYC record that belongs to the authenticated user, including its verification status. The lookup is by the id in the token, so a user always gets their own KYC.
  *     security:
