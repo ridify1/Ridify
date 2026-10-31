@@ -8,6 +8,9 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const cors = require('cors');
 const landLordRouter = require('./routes/landLordKyc')
 const adminRouter = require('./routes/admin')
+const agencyRouter = require('./routes/jobAgency')
+const hrRouter = require('./routes/employerKyc')
+const artisanRouter = require('./routes/artisanKyc')
 const cookieParser = require('cookie-parser');
 const redisClient = require('./config/redis');
 
@@ -75,6 +78,12 @@ app.use('/api/v1/user', userRouter);
 app.use('/api/v1/landlord', landLordRouter);
 
 app.use('/api/v1/admin', adminRouter);
+
+app.use('/api/v1/agency', agencyRouter)
+
+app.use('/api/v1/hr', hrRouter)
+
+app.use('/api/v1/artisan', artisanRouter)
 
 app.use((req, res, next) => {
     next({

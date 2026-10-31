@@ -11,17 +11,38 @@ const artisanKycSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    DateOfBirth: {
+    phoneNumber: {
+        type: Number,
+        required: true,
+        trim: true
+    },
+    email: {
+        type: String,
+        unique: true,
+        required: true,
+        trim: true
+    },
+    cityOrLocation: {
         type: String,
         required: true,
         trim: true
     },
-    HomeAddress: {
+    primaryTrade: {
         type: String,
+        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
+        required: true
+    },
+    yearsOfExperience: {
+        type: Number,
         required: true,
         trim: true
     },
-    city: {
+    availability: {
+        type: String,
+        enum: ['availableImmediately', 'availableWithinAWeek', 'availableWithinAMonth', 'openToOffer' ],
+        default: null
+    },
+    aboutYourWork: {
         type: String,
         required: true,
         trim: true
