@@ -292,6 +292,13 @@ const query = identifier.includes('@')
 
 const user = await userModel.findOne(query);
 
+if(user.role === 'admin'){
+            return next({
+                message: `Access denied: login as an Admin to continue`,
+                statusCode: 403
+            })
+        }
+
 const invalid = () =>
             next({ message: 'Invalid credentials', statusCode: 401 });
 
