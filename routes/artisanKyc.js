@@ -7,8 +7,8 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Artisan Kyc
- *   description: Artisan Kyc management and authentication
+ *   name: Artisan KYC
+ *   description: Artisan KYC management and authentication
  */
 
 /**
