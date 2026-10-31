@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty } = require('../controller/admin')
+const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty, getAllJobAgencyKyc, getAgencyKycById, updateAgencyKycStatus, deleteAgencyKyc, getVerifiedAgencyKyc, getUnverifiedAgencyKyc, getAllHrKyc, getHrKycById, updateHrKycStatus, deleteHrKyc, getVerifiedHrKyc, getUnverifiedHrKyc, getAllArtisanKyc, getArtisanKycById, updateArtisanKycStatus, deleteArtisanKyc, getVerifiedArtisanKyc, getUnverifiedArtisanKyc, getLandLordKycById } = require('../controller/admin')
 const { authenticate } = require('../middleware/auth')
 const { loginValidator } = require('../middleware/validator')
 
@@ -787,5 +787,1769 @@ router.get('/propertiesByLandLord/:landLordId', authenticate, getPropertiesByLan
  */
 
 router.delete('/deleteProperty/:propertyId', authenticate, deleteProperty)
+
+/**
+ * @swagger
+ * /api/v1/admin/getAllAgencyKyc:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all job agency KYC submissions
+ *     description: Returns every job agency KYC record, newest data included, with the submitting user's name, work email and phone number attached. Only admins can access this route. If there are no submissions, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Job Agency KYC retrieved successfully, or no Job Agency KYC found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job Agency KYC retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       jobAgencyId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           workEmail:
+ *                             type: string
+ *                             example: jane.doe@acme.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Recruitment
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       phoneNumber:
+ *                         type: string
+ *                         example: "8012345678"
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Staffing Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       registrationAddress:
+ *                         type: string
+ *                         example: 12 Admiralty Way, Lekki, Lagos
+ *                       companyWebsite:
+ *                         type: string
+ *                         example: https://www.acme.com
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getAllAgencyKyc', authenticate, getAllJobAgencyKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getAgencyById/{kycId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get a job agency KYC by id
+ *     description: Returns a single job agency KYC record by its id, including its verification status. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the job agency KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: Job Agency KYC retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job Agency KYC retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     jobAgencyId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     jobTitle:
+ *                       type: string
+ *                       example: Head of Recruitment
+ *                     workEmail:
+ *                       type: string
+ *                       example: jane.doe@acme.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "8012345678"
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Staffing Ltd
+ *                     registrationNumber:
+ *                       type: string
+ *                       example: RC1234567
+ *                     registrationAddress:
+ *                       type: string
+ *                       example: 12 Admiralty Way, Lekki, Lagos
+ *                     companyWebsite:
+ *                       type: string
+ *                       example: https://www.acme.com
+ *                     organizationSize:
+ *                       type: string
+ *                       example: 11-50
+ *                     identification:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/id.jpg
+ *                     identificationPublicId:
+ *                       type: string
+ *                       example: Ridify/jobAgencyKyc/id
+ *                     businessDocument:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/doc.jpg
+ *                     businessDocumentPublicId:
+ *                       type: string
+ *                       example: Ridify/jobAgencyKyc/doc
+ *                     selfie:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/selfie.jpg
+ *                     selfiePublicId:
+ *                       type: string
+ *                       example: Ridify/jobAgencyKyc/selfie
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Job Agency KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getAgencyById/:kycId', authenticate, getAgencyKycById)
+
+/**
+ * @swagger
+ * /api/v1/admin/updateAgencyKyc/{kycId}:
+ *   patch:
+ *     tags:
+ *       - Admin
+ *     summary: Approve or revoke a job agency KYC
+ *     description: Sets the verification status of a job agency KYC record. Sending true marks it as verified and records which admin verified it and when. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the job agency KYC record (not the user id)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - kycVerified
+ *             properties:
+ *               kycVerified:
+ *                 type: boolean
+ *                 example: true
+ *                 description: true to verify the KYC, false to mark it as not verified
+ *     responses:
+ *       200:
+ *         description: Job Agency KYC updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job Agency KYC updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     jobAgencyId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: Jane Doe
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Staffing Ltd
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: true
+ *                     verifiedBy:
+ *                       type: string
+ *                       nullable: true
+ *                       example: 6ab0a1b2a675b9e38dc41500
+ *                     verifiedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: 2026-10-31T10:15:00.000Z
+ *       400:
+ *         description: Invalid user ID, invalid KYC ID, or kycVerified is not a boolean
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Job Agency KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/updateAgencyKyc/:kycId', authenticate, updateAgencyKycStatus)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteAgencyKyc/{kycId}:
+ *   delete:
+ *     tags:
+ *       - Admin
+ *     summary: Delete a job agency KYC
+ *     description: Permanently deletes a job agency KYC record, which lets the user submit again. After deletion, an email telling the user their KYC could not be verified is sent to them. If the email fails, the deletion still succeeds. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the job agency KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: Job Agency KYC deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job Agency KYC deleted successfully
+ *                 data:
+ *                   type: object
+ *                   description: The deleted KYC record
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     jobAgencyId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Staffing Ltd
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Job Agency KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteAgencyKyc/:kycId', authenticate, deleteAgencyKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getVerifiedAgencies:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all verified job agency KYC records
+ *     description: Returns every job agency KYC record that has been verified, newest first, with the submitting user's details attached. Only admins can access this route. If there are no verified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verified KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Verified Kyc
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       jobAgencyId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Recruitment
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Staffing Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getVerifiedAgencies', authenticate, getVerifiedAgencyKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getUnverifiedKyc:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all unverified job agency KYC records
+ *     description: Returns every job agency KYC record that is still unverified (pending review), newest first, with the submitting user's details attached. Only admins can access this route. If there are no unverified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unverified KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unverified KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       jobAgencyId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Recruitment
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Staffing Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/jobAgencyKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getUnverifiedKyc', authenticate, getUnverifiedAgencyKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getAllHr:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all HR KYC records
+ *     description: Returns every HR (employer) KYC record, with the submitting user's details attached. Only admins can access this route. If there are no records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: HR KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: HR KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       employerId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Human Resources
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Industries Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       registeredAddress:
+ *                         type: string
+ *                         example: 12 Admiralty Way, Lekki, Lagos
+ *                       companyWebsite:
+ *                         type: string
+ *                         example: https://www.acme.com
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getAllHr', authenticate, getAllHrKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getHrKycById/{kycId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get an HR KYC record by id
+ *     description: Returns a single HR (employer) KYC record by its id, with the submitting user's details attached. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the HR KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: HR KYC retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: HR KYC retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     employerId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: Jane Doe
+ *                         email:
+ *                           type: string
+ *                           example: jane.doe@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     jobTitle:
+ *                       type: string
+ *                       example: Head of Human Resources
+ *                     workEmail:
+ *                       type: string
+ *                       example: jane.doe@acme.com
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Industries Ltd
+ *                     registrationNumber:
+ *                       type: string
+ *                       example: RC1234567
+ *                     registeredAddress:
+ *                       type: string
+ *                       example: 12 Admiralty Way, Lekki, Lagos
+ *                     companyWebsite:
+ *                       type: string
+ *                       example: https://www.acme.com
+ *                     organizationSize:
+ *                       type: string
+ *                       example: 11-50
+ *                     identification:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/id.jpg
+ *                     businessDocument:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.jpg
+ *                     selfie:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/selfie.jpg
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: HR KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getHrKycById/:kycId', authenticate, getHrKycById)
+
+/**
+ * @swagger
+ * /api/v1/admin/updateHrKyc/{kycId}:
+ *   patch:
+ *     tags:
+ *       - Admin
+ *     summary: Approve or revoke an HR KYC
+ *     description: Sets the verification status of an HR (employer) KYC record. Sending true marks it as verified and records which admin verified it and when. Sending false marks it as not verified and clears those fields. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the HR KYC record (not the user id)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - kycVerified
+ *             properties:
+ *               kycVerified:
+ *                 type: boolean
+ *                 example: true
+ *                 description: true to verify the KYC, false to mark it as not verified
+ *     responses:
+ *       200:
+ *         description: HR KYC updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: HR KYC updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     employerId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: Jane Doe
+ *                         email:
+ *                           type: string
+ *                           example: jane.doe@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Industries Ltd
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: true
+ *                     verifiedBy:
+ *                       type: string
+ *                       nullable: true
+ *                       example: 6ab0a1b2a675b9e38dc41500
+ *                     verifiedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: 2026-10-31T10:15:00.000Z
+ *       400:
+ *         description: Invalid user ID, invalid KYC ID, or kycVerified is not a boolean
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: HR KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/updateHrKyc/:kycId', authenticate, updateHrKycStatus)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteHrKyc/{kycId}:
+ *   delete:
+ *     tags:
+ *       - Admin
+ *     summary: Delete an HR KYC
+ *     description: Permanently deletes an HR (employer) KYC record, which lets the user submit again. After deletion, an email telling the user their KYC could not be verified is sent to them. If the email fails, the deletion still succeeds. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the HR KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: HR KYC deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: HR KYC deleted successfully
+ *                 data:
+ *                   type: object
+ *                   description: The deleted KYC record
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     employerId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     companyName:
+ *                       type: string
+ *                       example: Acme Industries Ltd
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: HR KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteHrKyc/:kycId', authenticate, deleteHrKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getVerifiedHr:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all verified HR KYC records
+ *     description: Returns every HR (employer) KYC record that has been verified, newest first, with the submitting user's details attached. Only admins can access this route. If there are no verified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verified HR KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Verified HR KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       employerId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Human Resources
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Industries Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getVerifiedHr', authenticate, getVerifiedHrKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getUnverifiedHr:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all unverified HR KYC records
+ *     description: Returns every HR (employer) KYC record that is still unverified (pending review), newest first, with the submitting user's details attached. Only admins can access this route. If there are no unverified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unverified HR KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unverified HR KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       employerId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: Jane Doe
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Head of Human Resources
+ *                       workEmail:
+ *                         type: string
+ *                         example: jane.doe@acme.com
+ *                       companyName:
+ *                         type: string
+ *                         example: Acme Industries Ltd
+ *                       registrationNumber:
+ *                         type: string
+ *                         example: RC1234567
+ *                       organizationSize:
+ *                         type: string
+ *                         example: 11-50
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/id.jpg
+ *                       businessDocument:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getUnverifiedHr', authenticate, getUnverifiedHrKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/allArtisanKyc:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all artisan KYC records
+ *     description: Returns every artisan KYC record, newest first, with the submitting user's details attached. Only admins can access this route. If there are no records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Artisan KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisan KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       artisanId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: John Okafor
+ *                           email:
+ *                             type: string
+ *                             example: john.okafor@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: John Okafor
+ *                       phoneNumber:
+ *                         type: string
+ *                         example: "8012345678"
+ *                       email:
+ *                         type: string
+ *                         example: john.okafor@example.com
+ *                       cityOrLocation:
+ *                         type: string
+ *                         example: Ikeja, Lagos
+ *                       primaryTrade:
+ *                         type: string
+ *                         example: Plumber
+ *                       yearsOfExperience:
+ *                         type: integer
+ *                         example: 5
+ *                       availability:
+ *                         type: string
+ *                         example: Weekdays
+ *                       aboutYourWork:
+ *                         type: string
+ *                         example: I install and repair residential plumbing systems
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/id.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/allArtisanKyc', authenticate, getAllArtisanKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/artisanKycById/{kycId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get an artisan KYC record by id
+ *     description: Returns a single artisan KYC record by its id, with the submitting user's details attached. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the artisan KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: Artisan KYC retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisan KYC retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     artisanId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: John Okafor
+ *                         email:
+ *                           type: string
+ *                           example: john.okafor@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: John Okafor
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "8012345678"
+ *                     email:
+ *                       type: string
+ *                       example: john.okafor@example.com
+ *                     cityOrLocation:
+ *                       type: string
+ *                       example: Ikeja, Lagos
+ *                     primaryTrade:
+ *                       type: string
+ *                       example: Plumber
+ *                     yearsOfExperience:
+ *                       type: integer
+ *                       example: 5
+ *                     availability:
+ *                       type: string
+ *                       example: Weekdays
+ *                     aboutYourWork:
+ *                       type: string
+ *                       example: I install and repair residential plumbing systems
+ *                     identification:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/id.jpg
+ *                     selfie:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/selfie.jpg
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Artisan KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/artisanKycById/:kycId', authenticate, getArtisanKycById)
+
+/**
+ * @swagger
+ * /api/v1/admin/updateArtisanKyc/{kycId}:
+ *   patch:
+ *     tags:
+ *       - Admin
+ *     summary: Approve or revoke an artisan KYC
+ *     description: Sets the verification status of an artisan KYC record. Sending true marks it as verified and records which admin verified it and when. Sending false marks it as not verified and clears those fields. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the artisan KYC record (not the user id)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - kycVerified
+ *             properties:
+ *               kycVerified:
+ *                 type: boolean
+ *                 example: true
+ *                 description: true to verify the KYC, false to mark it as not verified
+ *     responses:
+ *       200:
+ *         description: Artisan KYC updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisan KYC updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     artisanId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: John Okafor
+ *                         email:
+ *                           type: string
+ *                           example: john.okafor@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: John Okafor
+ *                     primaryTrade:
+ *                       type: string
+ *                       example: Plumber
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: true
+ *                     verifiedBy:
+ *                       type: string
+ *                       nullable: true
+ *                       example: 6ab0a1b2a675b9e38dc41500
+ *                     verifiedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       example: 2026-10-31T10:15:00.000Z
+ *       400:
+ *         description: Invalid user ID, invalid KYC ID, or kycVerified is not a boolean
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Artisan KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/updateArtisanKyc/:kycId', authenticate, updateArtisanKycStatus)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteArtisanKyc/{kycId}:
+ *   delete:
+ *     tags:
+ *       - Admin
+ *     summary: Delete an artisan KYC
+ *     description: Permanently deletes an artisan KYC record, which lets the user submit again. After deletion, an email telling the user their KYC could not be verified is sent to them. If the email fails, the deletion still succeeds. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the artisan KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: Artisan KYC deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisan KYC deleted successfully
+ *                 data:
+ *                   type: object
+ *                   description: The deleted KYC record
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     artisanId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: John Okafor
+ *                     primaryTrade:
+ *                       type: string
+ *                       example: Plumber
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Artisan KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteArtisanKyc/:kycId', authenticate, deleteArtisanKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/getVerifiedArtisanKyc:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all verified artisan KYC records
+ *     description: Returns every artisan KYC record that has been verified, newest first, with the submitting user's details attached. Only admins can access this route. If there are no verified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verified artisan KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Verified Artisan KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       artisanId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: John Okafor
+ *                           email:
+ *                             type: string
+ *                             example: john.okafor@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: John Okafor
+ *                       phoneNumber:
+ *                         type: string
+ *                         example: "8012345678"
+ *                       email:
+ *                         type: string
+ *                         example: john.okafor@example.com
+ *                       cityOrLocation:
+ *                         type: string
+ *                         example: Ikeja, Lagos
+ *                       primaryTrade:
+ *                         type: string
+ *                         example: Plumber
+ *                       yearsOfExperience:
+ *                         type: integer
+ *                         example: 5
+ *                       availability:
+ *                         type: string
+ *                         example: Weekdays
+ *                       aboutYourWork:
+ *                         type: string
+ *                         example: I install and repair residential plumbing systems
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/id.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getVerifiedArtisanKyc', authenticate, getVerifiedArtisanKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/unverifiedKyc:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all unverified artisan KYC records
+ *     description: Returns every artisan KYC record that is still unverified (pending review), newest first, with the submitting user's details attached. Only admins can access this route. If there are no unverified records, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unverified artisan KYC records retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Unverified Artisan KYC retrieved successfully
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab3d5e6a675b9e38dc41900
+ *                       artisanId:
+ *                         type: object
+ *                         description: The submitting user (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: John Okafor
+ *                           email:
+ *                             type: string
+ *                             example: john.okafor@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       fullLegalName:
+ *                         type: string
+ *                         example: John Okafor
+ *                       phoneNumber:
+ *                         type: string
+ *                         example: "8012345678"
+ *                       email:
+ *                         type: string
+ *                         example: john.okafor@example.com
+ *                       cityOrLocation:
+ *                         type: string
+ *                         example: Ikeja, Lagos
+ *                       primaryTrade:
+ *                         type: string
+ *                         example: Plumber
+ *                       yearsOfExperience:
+ *                         type: integer
+ *                         example: 5
+ *                       availability:
+ *                         type: string
+ *                         example: Weekdays
+ *                       aboutYourWork:
+ *                         type: string
+ *                         example: I install and repair residential plumbing systems
+ *                       identification:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/id.jpg
+ *                       selfie:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/Ridify/artisanKyc/selfie.jpg
+ *                       kycVerified:
+ *                         type: boolean
+ *                         example: false
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/unverifiedKyc', authenticate, getUnverifiedArtisanKyc)
+
+/**
+ * @swagger
+ * /api/v1/admin/landLordKycById/{kycId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get a landlord KYC record by id
+ *     description: Returns a single landlord KYC record by its id, with the submitting user's details attached. Only admins can access this route.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: kycId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab3d5e6a675b9e38dc41900
+ *         description: The id of the landlord KYC record (not the user id)
+ *     responses:
+ *       200:
+ *         description: Landlord KYC retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Landlord KYC retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab3d5e6a675b9e38dc41900
+ *                     landLordId:
+ *                       type: object
+ *                       description: The submitting user (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab0f2ffa675b9e38dc41623
+ *                         fullName:
+ *                           type: string
+ *                           example: Jane Doe
+ *                         email:
+ *                           type: string
+ *                           example: jane.doe@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     fullLegalName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     DateOfBirth:
+ *                       type: string
+ *                       example: "1990-05-21"
+ *                     HomeAddress:
+ *                       type: string
+ *                       example: 12 Admiralty Way, Lekki
+ *                     city:
+ *                       type: string
+ *                       example: Lagos
+ *                     propertyAddress:
+ *                       type: string
+ *                       example: 45 Allen Avenue, Ikeja
+ *                     NumberOfProperties:
+ *                       type: integer
+ *                       example: 3
+ *                     ownershipType:
+ *                       type: string
+ *                       example: soleOwner
+ *                     identification:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/landLordKyc/id.jpg
+ *                     selfie:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/landLordKyc/selfie.jpg
+ *                     kycVerified:
+ *                       type: boolean
+ *                       example: false
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID or invalid KYC ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       404:
+ *         description: Landlord KYC not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/landLordKycById/:kycId', authenticate, getLandLordKycById)
 
 module.exports = router;

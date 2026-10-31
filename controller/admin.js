@@ -1,6 +1,9 @@
  const landLordKycModel = require('../model/landLordKyc');
  const userModel = require('../model/user');
  const propertyModel = require('../model/propertyUpload')
+ const jobAgencyModel = require('../model/jobAgencyKyc')
+ const hrKycModel = require('../model/employerKyc')
+ const artisanKycModel = require('../model/artisanKyc')
  const bcrypt = require('bcrypt');
  const jwt = require('jsonwebtoken');
  const mongoose = require('mongoose');
@@ -669,5 +672,821 @@ exports.deleteProperty = async (req, res, next) => {
             message: error.message,
             statusCode: 500
         });
+    }
+};
+
+exports.getAllJobAgencyKyc = async (req, res, next) => {
+    try{
+        const { id } = req.user;
+
+        if(!mongoose.Types.ObjectId.isValid(id)){
+            return next({
+                message: `Invalid user ID`,
+                statusCode: 400
+            })
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const jobAgencyKyc = await jobAgencyModel
+            .find()
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('jobAgencyId', 'fullName workEmail phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: jobAgencyKyc.length
+                ? 'Job Agency KYC retrieved successfully'
+                : 'No Job Agency KYC found',
+            data: jobAgencyKyc
+        });
+
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+ }
+
+ exports.getAgencyKycById = async (req, res, next) => {
+    try{
+        const { id } = req.user;
+
+        if(!mongoose.Types.ObjectId.isValid(id)){
+            return next({
+                message: `Invalid user ID`,
+                statusCode: 400
+            })
+        }
+
+           const admin = await userModel.findById(id).select('role');
+   if (!admin || admin.role !== 'admin') {
+       return next({ message: 'Access denied: Admins only', statusCode: 403 });
+   }
+
+        const { kycId } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(kycId)){
+            return next({
+                message: `Invalid KYC ID`,
+                statusCode: 400
+            })
+        }
+
+        const jobAgencyKyc = await jobAgencyKycModel.findById(kycId)
+        if(!jobAgencyKyc){
+            return next({
+                message: `Job Agency KYC not found`,
+                statusCode: 404
+            })
+        }
+
+        res.status(200).json({
+            message: `Job Agency KYC retrieved successfully`,
+            data: jobAgencyKyc
+        })
+
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+ }
+
+ exports.updateAgencyKycStatus = async (req, res, next) => {
+    try{
+        const { id } = req.user;
+
+        if(!mongoose.Types.ObjectId.isValid(id)){
+            return next({
+                message: `Invalid user ID`,
+                statusCode: 400
+            })
+        }
+
+           const admin = await userModel.findById(id).select('role');
+   if (!admin || admin.role !== 'admin') {
+       return next({ message: 'Access denied: Admins only', statusCode: 403 });
+   }
+
+        const { kycId } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(kycId)){
+            return next({
+                message: `Invalid KYC ID`,
+                statusCode: 400
+            })
+        }
+
+        const { kycVerified } = req.body;
+
+        if(typeof kycVerified !== 'boolean'){
+            return next({
+                message: `Invalid kycVerified value, must be either true or false`,
+                statusCode: 400
+            })
+        }
+
+        const update = kycVerified
+      ? { kycVerified, verifiedBy: req.user.id, verifiedAt: new Date() }
+      : { kycVerified, verifiedBy: null, verifiedAt: null }
+
+           const updatedKyc = await jobAgencyKycModel
+       .findByIdAndUpdate(kycId, update, { new: true, runValidators: true })
+       .populate('jobAgencyId', 'fullName workEmail phoneNumber');
+
+
+        if(!updatedKyc){
+            return next({
+                message: `Job Agency KYC not found`,
+                statusCode: 404
+            })
+        }
+
+        res.status(200).json({
+            message: `Job Agency KYC updated successfully`,
+            data: updatedKyc
+        })
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+ }
+
+ exports.deleteAgencyKyc = async (req, res, next) => {
+    try{
+        const { id } = req.user;
+
+        if(!mongoose.Types.ObjectId.isValid(id)){
+            return next({
+                message: `Invalid user ID`,
+                statusCode: 400
+            })
+        }
+
+           const admin = await userModel.findById(id).select('role');
+   if (!admin || admin.role !== 'admin') {
+       return next({ message: 'Access denied: Admins only', statusCode: 403 });
+   }
+
+        const { kycId } = req.params;
+
+        if(!mongoose.Types.ObjectId.isValid(kycId)){
+            return next({
+                message: `Invalid KYC ID`,
+                statusCode: 400
+            })
+        }
+
+        const deletedKyc = await jobAgencyKycModel.findByIdAndDelete(kycId)
+
+        if(!deletedKyc){
+            return next({
+                message: `Job Agency KYC not found`,
+                statusCode: 404
+            })
+        }
+
+           for (const pid of [deletedKyc.identificationPublicId, deletedKyc.selfiePublicId, deletedKyc.businessDocumentPublicId]) {
+       if (pid) { try { await cloudinary.uploader.destroy(pid); } catch (_) {} }
+   }
+
+        try {
+      const jobAgency = await userModel
+        .findById(deletedKyc.jobAgencyId)
+        .select('fullName email')
+        .lean()
+
+      if (jobAgency) {
+        const emailTemplate = kycDeniedTemplate(
+          jobAgency.fullName,
+          'The submitted KYC documents could not be verified.'
+        )
+        await sendBrevoEmail(jobAgency.email, 'KYC Verification Update', emailTemplate)
+      }
+    } catch (emailError) {
+      console.error('Failed to send KYC denial email:', emailError.message)
+    }
+
+
+        res.status(200).json({
+            message: `Job Agency KYC deleted successfully`,
+            data: deletedKyc
+        })
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+ }
+
+exports.getVerifiedAgencyKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const verifiedKyc = await jobAgencyKycModel
+            .find({ kycVerified: true })
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('jobAgencyId', 'fullName workEmail phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: verifiedKyc.length ? 'Verified KYC retrieved successfully' : 'No verified Job Agency KYC found',
+            success: true,
+            count: verifiedKyc.length,
+            data: verifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+ exports.getUnverifiedAgencyKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const unverifiedKyc = await jobAgencyKycModel
+            .find({ kycVerified: false })
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('jobAgencyId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: unverifiedKyc.length
+                ? 'Unverified KYC retrieved successfully'
+                : 'No unverified Job Agency KYC found',
+            success: true,
+            count: unverifiedKyc.length,
+            data: unverifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getAllHrKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const hrKyc = await hrKycModel
+            .find()
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('employerId', 'fullName workEmail phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: hrKyc.length ? 'HR KYC retrieved successfully' : 'No HR KYC found',
+            success: true,
+            count: hrKyc.length,
+            data: hrKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getHrKycById = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const hrKyc = await hrKycModel
+            .findById(kycId)
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('employerId', 'fullName email phoneNumber')
+            .lean();
+
+        if (!hrKyc) {
+            return next({ message: 'HR KYC not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'HR KYC retrieved successfully',
+            data: hrKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.updateHrKycStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const { kycVerified } = req.body;
+
+        if (typeof kycVerified !== 'boolean') {
+            return next({
+                message: 'Invalid kycVerified value, must be either true or false',
+                statusCode: 400
+            });
+        }
+
+        const update = kycVerified
+            ? { kycVerified, verifiedBy: id, verifiedAt: new Date() }
+            : { kycVerified, verifiedBy: null, verifiedAt: null };
+
+        const updatedKyc = await hrKycModel
+            .findByIdAndUpdate(kycId, update, { new: true, runValidators: true })
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('employerId', 'fullName email phoneNumber');
+
+        if (!updatedKyc) {
+            return next({ message: 'HR KYC not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'HR KYC updated successfully',
+            data: updatedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.deleteHrKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const deletedKyc = await hrKycModel.findByIdAndDelete(kycId);
+
+        if (!deletedKyc) {
+            return next({ message: 'HR KYC not found', statusCode: 404 });
+        }
+
+        for (const pid of [
+            deletedKyc.identificationPublicId,
+            deletedKyc.selfiePublicId,
+            deletedKyc.businessDocumentPublicId
+        ]) {
+            if (pid) {
+                try { await cloudinary.uploader.destroy(pid); } catch (_) {}
+            }
+        }
+
+        try {
+            const hr = await userModel
+                .findById(deletedKyc.employerId)
+                .select('fullName email')
+                .lean();
+
+            if (hr) {
+                const emailTemplate = kycDeniedTemplate(
+                    hr.fullName,
+                    'The submitted KYC documents could not be verified.'
+                );
+                await sendBrevoEmail(hr.email, 'KYC Verification Update', emailTemplate);
+            }
+        } catch (emailError) {
+            console.error('Failed to send KYC denial email:', emailError.message);
+        }
+
+        return res.status(200).json({
+            message: 'HR KYC deleted successfully',
+            data: {
+                _id: deletedKyc._id,
+                employerId: deletedKyc.employerId,
+                fullLegalName: deletedKyc.fullLegalName,
+                companyName: deletedKyc.companyName,
+                kycVerified: deletedKyc.kycVerified
+            }
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getVerifiedHrKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const verifiedKyc = await hrKycModel
+            .find({ kycVerified: true })
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('employerId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: verifiedKyc.length
+                ? 'Verified HR KYC retrieved successfully'
+                : 'No verified HR KYC found',
+            success: true,
+            count: verifiedKyc.length,
+            data: verifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getUnverifiedHrKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const unverifiedKyc = await hrKycModel
+            .find({ kycVerified: { $ne: true } })
+            .select('-identificationPublicId -businessDocumentPublicId -selfiePublicId')
+            .populate('employerId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: unverifiedKyc.length
+                ? 'Unverified HR KYC retrieved successfully'
+                : 'No unverified HR KYC found',
+            success: true,
+            count: unverifiedKyc.length,
+            data: unverifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getAllArtisanKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const artisanKyc = await artisanKycModel
+            .find()
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('artisanId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: artisanKyc.length
+                ? 'Artisan KYC retrieved successfully'
+                : 'No Artisan KYC found',
+            success: true,
+            count: artisanKyc.length,
+            data: artisanKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getArtisanKycById = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const artisanKyc = await artisanKycModel
+            .findById(kycId)
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('artisanId', 'fullName email phoneNumber')
+            .lean();
+
+        if (!artisanKyc) {
+            return next({ message: 'Artisan KYC not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Artisan KYC retrieved successfully',
+            data: artisanKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.updateArtisanKycStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const { kycVerified } = req.body;
+
+        if (typeof kycVerified !== 'boolean') {
+            return next({
+                message: 'Invalid kycVerified value, must be either true or false',
+                statusCode: 400
+            });
+        }
+
+        const update = kycVerified
+            ? { kycVerified, verifiedBy: id, verifiedAt: new Date() }
+            : { kycVerified, verifiedBy: null, verifiedAt: null };
+
+        const updatedKyc = await artisanKycModel
+            .findByIdAndUpdate(kycId, update, { new: true, runValidators: true })
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('artisanId', 'fullName email phoneNumber');
+
+        if (!updatedKyc) {
+            return next({ message: 'Artisan KYC not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Artisan KYC updated successfully',
+            data: updatedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.deleteArtisanKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const deletedKyc = await artisanKycModel.findByIdAndDelete(kycId);
+
+        if (!deletedKyc) {
+            return next({ message: 'Artisan KYC not found', statusCode: 404 });
+        }
+
+        for (const pid of [deletedKyc.identificationPublicId, deletedKyc.selfiePublicId]) {
+            if (pid) {
+                try { await cloudinary.uploader.destroy(pid); } catch (_) {}
+            }
+        }
+
+        try {
+            const artisan = await userModel
+                .findById(deletedKyc.artisanId)
+                .select('fullName email')
+                .lean();
+
+            if (artisan) {
+                const reason = req.body?.reason || 'The submitted KYC documents could not be verified.';
+                const emailTemplate = kycDeniedTemplate(artisan.fullName, reason);
+                await sendBrevoEmail(artisan.email, 'KYC Verification Update', emailTemplate);
+            }
+        } catch (emailError) {
+            console.error('Failed to send KYC denial email:', emailError.message);
+        }
+
+        return res.status(200).json({
+            message: 'Artisan KYC deleted successfully',
+            data: {
+                _id: deletedKyc._id,
+                artisanId: deletedKyc.artisanId,
+                fullLegalName: deletedKyc.fullLegalName,
+                primaryTrade: deletedKyc.primaryTrade,
+                kycVerified: deletedKyc.kycVerified
+            }
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getVerifiedArtisanKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const verifiedKyc = await artisanKycModel
+            .find({ kycVerified: true })
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('artisanId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: verifiedKyc.length
+                ? 'Verified Artisan KYC retrieved successfully'
+                : 'No verified Artisan KYC found',
+            success: true,
+            count: verifiedKyc.length,
+            data: verifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getUnverifiedArtisanKyc = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid User ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const unverifiedKyc = await artisanKycModel
+            .find({ kycVerified: { $ne: true } })
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('artisanId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: unverifiedKyc.length
+                ? 'Unverified Artisan KYC retrieved successfully'
+                : 'No unverified Artisan KYC found',
+            success: true,
+            count: unverifiedKyc.length,
+            data: unverifiedKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getLandLordKycById = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.isValidObjectId(id)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { kycId } = req.params;
+
+        if (!mongoose.isValidObjectId(kycId)) {
+            return next({ message: 'Invalid KYC ID', statusCode: 400 });
+        }
+
+        const landLordKyc = await landLordKycModel
+            .findById(kycId)
+            .select('-identificationPublicId -selfiePublicId')
+            .populate('landLordId', 'fullName email phoneNumber')
+            .lean();
+
+        if (!landLordKyc) {
+            return next({ message: 'Landlord KYC not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Landlord KYC retrieved successfully',
+            data: landLordKyc
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
     }
 };
