@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   name: Job Agency Kyc
+ *   name: Job Agency KYC
  *   description: Job Agency management and authentication
  */
 
