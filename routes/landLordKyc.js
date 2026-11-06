@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/multer');
-const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload, getPropertiesByLandLord, getPropertyByLandLord, archiveProperty, changeStatus, deleteProperty, unarchiveProperty, getAchivedPropertiesByLandLord, getPropertiesByStatus} = require('../controller/landLordKyc');
+const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload, getPropertiesByLandLord, getPropertyByLandLord, archiveProperty, changeStatus, deleteProperty, unarchiveProperty, getAchivedPropertiesByLandLord, getPropertiesByStatus, getAllPropertiesByStatus, getPropertyViewStats} = require('../controller/landLordKyc');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -1076,5 +1076,9 @@ router.get('/getByStatus', authenticate, getPropertiesByStatus)
  */
 
 router.delete('/deleteProperty/:propertyId', authenticate, deleteProperty)
+
+router.get('/getAllByStatus', authenticate, getAllPropertiesByStatus)
+
+router.get('/viewStats/:propertyId', authenticate, getPropertyViewStats)
 
 module.exports = router;

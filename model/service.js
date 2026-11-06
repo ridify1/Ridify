@@ -12,6 +12,12 @@ const serviceSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    category: {
+        type: String,
+        enum: ['electrician', 'plumber', 'painter', 'HVAC', 'carpenter', 'curlinary', 'security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
+        required: true,
+        trim: true
+    },
     engagement: {
         type: String,
         enum: ['gig', 'contract','full-time', 'part-time'],

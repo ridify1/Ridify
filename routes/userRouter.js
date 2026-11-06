@@ -2,8 +2,8 @@ const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
-const { dashboard } = require('../controller/userDashboard');
-
+const { dashboard, getPropertiesByCategory, getArtisansByCategory, getPropertiesByLocation, getArtisansByLocation } = require('../controller/userDashboard');
+const express = require('express')
 const router = require('express').Router();
 
 /**
@@ -776,5 +776,13 @@ router.post('/refresh', refresh);
  */
 
 router.post('/logout', authenticate, logout);
+
+router.get('/getPropertiesByCategory', authenticate, getPropertiesByCategory);
+
+router.get('/getByLocation', authenticate, getPropertiesByLocation)
+
+router.get('/getArtisansByCategory', authenticate, getArtisansByCategory)
+
+router.get('/getArtisanByLocation', authenticate, getArtisansByLocation)
 
 module.exports = router

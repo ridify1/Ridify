@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty, getAllJobAgencyKyc, getAgencyKycById, updateAgencyKycStatus, deleteAgencyKyc, getVerifiedAgencyKyc, getUnverifiedAgencyKyc, getAllHrKyc, getHrKycById, updateHrKycStatus, deleteHrKyc, getVerifiedHrKyc, getUnverifiedHrKyc, getAllArtisanKyc, getArtisanKycById, updateArtisanKycStatus, deleteArtisanKyc, getVerifiedArtisanKyc, getUnverifiedArtisanKyc, getLandLordKycById } = require('../controller/admin')
+const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty, getAllJobAgencyKyc, getAgencyKycById, updateAgencyKycStatus, deleteAgencyKyc, getVerifiedAgencyKyc, getUnverifiedAgencyKyc, getAllHrKyc, getHrKycById, updateHrKycStatus, deleteHrKyc, getVerifiedHrKyc, getUnverifiedHrKyc, getAllArtisanKyc, getArtisanKycById, updateArtisanKycStatus, deleteArtisanKyc, getVerifiedArtisanKyc, getUnverifiedArtisanKyc, getLandLordKycById, getAllInspections, getAllInspectionsByLandlord } = require('../controller/admin')
 const { authenticate } = require('../middleware/auth')
 const { loginValidator } = require('../middleware/validator')
 
@@ -2551,5 +2551,204 @@ router.get('/unverifiedKyc', authenticate, getUnverifiedArtisanKyc)
  */
 
 router.get('/landLordKycById/:kycId', authenticate, getLandLordKycById)
+
+/**
+ * @swagger
+ * /api/v1/admin/allInspections:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all inspection requests
+ *     description: Returns every inspection request, newest first, with the property and inspector details attached. Only admins can access this route. If there are no inspection requests, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Inspections retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Inspections retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab4e6f7a675b9e38dc41a00
+ *                       propertyId:
+ *                         type: object
+ *                         description: The property being inspected (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab2c4d5a675b9e38dc41800
+ *                           title:
+ *                             type: string
+ *                             example: Spacious 3 Bedroom Apartment
+ *                           description:
+ *                             type: string
+ *                             example: A bright apartment close to schools and shopping centres
+ *                           state:
+ *                             type: string
+ *                             example: Lagos
+ *                           city:
+ *                             type: string
+ *                             example: Ikeja
+ *                           streetAddress:
+ *                             type: string
+ *                             example: 45 Allen Avenue
+ *                           rent:
+ *                             type: number
+ *                             example: 2000000
+ *                           status:
+ *                             type: string
+ *                             example: available
+ *                           category:
+ *                             type: string
+ *                             example: apartment
+ *                       inspectorId:
+ *                         type: object
+ *                         description: The user who requested the inspection (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab0f2ffa675b9e38dc41623
+ *                           fullName:
+ *                             type: string
+ *                             example: Jane Doe
+ *                           email:
+ *                             type: string
+ *                             example: jane.doe@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied. Admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/allInspections', authenticate, getAllInspections)
+
+/**
+ * @swagger
+ * /api/v1/admin/getInspectionsByAgent/{landlordId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get inspection requests for a landlord
+ *     description: Returns all inspection requests for the properties of the given landlord, newest first, with the property and requester details attached. A landlord can only view their own inspections, and admins can view any landlord's. If there are none, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: landlordId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab0f2ffa675b9e38dc41623
+ *         description: The user id of the landlord
+ *     responses:
+ *       200:
+ *         description: Inspections retrieved successfully, or none found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Inspections retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab4e6f7a675b9e38dc41a00
+ *                       landLordId:
+ *                         type: string
+ *                         example: 6ab0f2ffa675b9e38dc41623
+ *                       propertyId:
+ *                         type: object
+ *                         description: The property being inspected (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab2c4d5a675b9e38dc41800
+ *                           title:
+ *                             type: string
+ *                             example: Spacious 3 Bedroom Apartment
+ *                           description:
+ *                             type: string
+ *                             example: A bright apartment close to schools and shopping centres
+ *                           state:
+ *                             type: string
+ *                             example: Lagos
+ *                           city:
+ *                             type: string
+ *                             example: Ikeja
+ *                           streetAddress:
+ *                             type: string
+ *                             example: 45 Allen Avenue
+ *                           rent:
+ *                             type: number
+ *                             example: 2000000
+ *                           status:
+ *                             type: string
+ *                             example: available
+ *                           propertyType:
+ *                             type: string
+ *                             example: apartment
+ *                       inspectorId:
+ *                         type: object
+ *                         description: The user who requested the inspection (populated)
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             example: 6ab5f7a8a675b9e38dc41b00
+ *                           fullName:
+ *                             type: string
+ *                             example: John Okafor
+ *                           email:
+ *                             type: string
+ *                             example: john.okafor@example.com
+ *                           phoneNumber:
+ *                             type: string
+ *                             example: "8012345678"
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid landlord ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: You can only view your own inspections
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getInspectionsByAgent/:landLordId', authenticate, getAllInspectionsByLandlord)
 
 module.exports = router;

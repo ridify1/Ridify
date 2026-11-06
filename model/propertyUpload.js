@@ -67,7 +67,7 @@ const propertyUploadSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['available', 'unAvailable', 'rented', 'sold'],
+        enum: ['available', 'unavailable', 'rented', 'sold'],
         default: 'available',
         required: true
     },
@@ -126,7 +126,14 @@ const propertyUploadSchema = new mongoose.Schema({
         type: [String],
         enum: AMENITIES,
         default: []
-    }
+    },
+    totalViews:  { type: Number, default: 0 },
+    uniqueViews: { type: Number, default: 0 },
+    saved: {
+        type: String,
+        type: Boolean,
+        default: false
+    },
 }, {timestamps: true})
 
 const PropertyUpload = mongoose.model('PropertyUpload', propertyUploadSchema)

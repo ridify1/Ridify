@@ -1,0 +1,328 @@
+const mongoose = require('mongoose');
+const express = require('express');
+const inspectionModel = require('../model/inspection');
+const userModel = require('../model/user');
+const propertyModel = require('../model/propertyUpload');
+
+exports.createInspection = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+        const { propertyId, landLordId, inspectorId, preferredDate, preferredTime, message } = req.body;
+
+        if (!propertyId || !landLordId || !inspectorId || !preferredDate) {
+            return next({
+                message: 'Property ID, and Preferred Date are required.',
+                statusCode: 400
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+            return next({ message: 'Invalid property ID', statusCode: 400 });
+         }
+
+        const date = new Date(preferredDate);
+        if (Number.isNaN(date.getTime()) || date < new Date()) {
+            return next({ message: 'Choose a valid future date', statusCode: 400 });
+        }   
+
+
+        const user = await userModel.findById(id);
+        if (!user) {
+            return next({
+                message: 'User not found.',
+                statusCode: 404
+            });
+        }
+
+        const property = await propertyModel.findOne({
+            _id: propertyId,
+            isDeleted: { $ne: true }
+        });
+
+        if (!property) {
+            return next({
+                message: 'Property not found.',
+                statusCode: 404
+            });
+        }
+
+        if (String(property.landLordId) === String(id)) {
+        return next({ message: 'You cannot inspect your own property', statusCode: 400 });
+        }
+
+        if(property.status !== 'available') {
+            return next({ message: 'This property is not available for inspection', statusCode: 400 });
+        }
+
+        const existing = await inspectionModel.findOne({
+        propertyId,
+        inspectorId: id,
+        status: { $in: ['pending', 'accepted'] }
+        });
+
+        if (existing) {
+        return next({ message: 'You already have an open request for this property', statusCode: 409 });
+        }
+
+        const inspect = {
+            propertyId: propertyId,
+            landLordId: property.landLordId,
+            inspectorId: id,
+            preferredDate: date,
+            preferredTime,
+            message
+        };
+
+        const newInspection = await inspectionModel.create(inspect);
+
+        return res.status(201).json({
+            message: 'Inspection request sent successfully',
+            data: newInspection
+        });
+
+    }catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getAgentInspections = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const inspections = await inspectionModel.find({ landLordId: id })
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (inspections.length === 0) {
+            return res.status(200).json({
+                message: 'No inspection requests to display',
+                statusCode: 400
+            })
+        }
+
+        return res.status(200).json({
+            message: 'Inspections retrieved successfully',
+            count: inspections.length,
+            data: inspections
+        });
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getAgentInspection = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const { inspectionId } = req.params
+
+        const inspections = await inspectionModel.find({ inspectionId })
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (id != inspections.landLordId ) {
+            return next({
+                message: 'You can only view your own inspection request',
+                statusCode: 400
+            })
+        }
+
+        if (inspections.length === 0) {
+            return res.status(200).json({
+                message: 'No inspection requests to display',
+                statusCode: 400
+            })
+        }
+
+        return res.status(200).json({
+            message: 'Inspections retrieved successfully',
+            count: inspections.length,
+            data: inspections
+        });
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.updateInspectionStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const { inspectionId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(inspectionId)) {
+            return next({
+                message: 'Invalid inspection ID',
+                statusCode: 400
+            });
+        }
+
+        const { status, declineReason } = req.body;
+
+        if (!status || !['accepted', 'declined', 'completed', 'cancelled'].includes(status)) {
+            return next({
+                message: 'Invalid status. Must be one of: accepted, declined, completed, cancelled',
+                statusCode: 400
+            });
+        }
+        
+        if (status === 'declined' && !declineReason) {
+            return next({
+                message: 'Decline reason is required when declining an inspection.',
+                statusCode: 400
+            });
+        }
+
+        const inspection = await inspectionModel.findById(inspectionId);
+
+        if (!inspection) {
+            return next({
+                message: 'Inspection not found.',
+                statusCode: 404
+            });
+        }
+
+        if (String(inspection.landLordId) !== String(id)) {
+            return next({
+                message: 'You are not authorized to update this inspection.',
+                statusCode: 403
+            });
+        }
+
+        inspection.status = status;
+        if (status === 'declined') {
+            inspection.declineReason = declineReason;
+        } else {
+            inspection.declineReason = undefined; 
+        }
+
+        await inspection.save();
+
+        return res.status(200).json({
+            message: 'Inspection status updated successfully',
+            data: inspection
+        });
+
+    } catch (error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getInspectorsRequests = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const inspections = await inspectionModel.find({ inspectorId: id })
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('landLordId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: 'Inspection requests retrieved successfully',
+            data: inspections
+        });
+    }catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getInspectorsInspection = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const { inspectionId } = req.params
+
+        const inspections = await inspectionModel.find({ inspectionId })
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (id != inspections.inspectorId ) {
+            return next({
+                message: 'You can only view your own inspection request',
+                statusCode: 400
+            })
+        }
+
+        if (inspections.length === 0) {
+            return res.status(200).json({
+                message: 'No inspection requests to display',
+                statusCode: 400
+            })
+        }
+
+        return res.status(200).json({
+            message: 'Inspections retrieved successfully',
+            count: inspections.length,
+            data: inspections
+        });
+    }catch(error){
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}

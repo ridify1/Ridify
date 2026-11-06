@@ -45,7 +45,7 @@ const userSchema = new mongoose.Schema({
     },
     categoryForArtisan: {
         type: String,
-        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
+        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Curlinary', 'Security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
         default: null
     },
     roleForJob: {

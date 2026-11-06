@@ -3,6 +3,7 @@ const userModel = require('../model/user')
 const express = require('express')
 const cloudinary = require('../config/cloudinary')
 const propertyModel = require('../model/propertyUpload')
+const recordView = require('../utils/propertyHelper')
 const fs = require('fs')
 const mongoose = require('mongoose')
 
@@ -450,19 +451,11 @@ exports.getPropertyByLandLord = async (req, res, next) => {
 
         const property = await propertyModel.findOne({_id: propertyId, isDeleted: { $ne: true }})
 
-if (!property) {
-  return next({ message: 'Property not found', statusCode: 404 })
-}
+        if (!property) {
+        return next({ message: 'Property not found', statusCode: 404 })
+        }
 
-const isAdmin = req.user.role === 'admin'
-const isOwner = property.landLordId.toString() === req.user.id
-
-if (!isAdmin && !isOwner) {
-  return next({
-    message: 'Unauthorized: You can only access your own property information',
-    statusCode: 403
-  })
-}
+        recordView(property, req);
 
         res.status(200).json({
             message: 'Property retrieved successfully',
@@ -736,5 +729,220 @@ exports.deleteProperty = async (req, res, next) => {
         })
     } catch (error) {
         
+    }
+}
+
+exports.getAllPropertiesByStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.isValidObjectId(id)) {
+            return next({
+                message: "User not found or User Id is not valid",
+                statusCode: 400
+            })
+        }
+
+        const { status } = req.query;
+
+        if (!status) {
+            return next({ message: 'Status is required', statusCode: 400 });
+        }
+
+        const properties = await propertyModel
+            .find({
+                status,
+                archive: { $ne: true },
+                isDeleted: { $ne: true }
+            })
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (properties.length === 0) {
+            return next({
+                message: `No property with status "${status}" found`,
+                statusCode: 404
+            });
+        }
+
+        return res.status(200).json({
+            message: 'Properties retrieved successfully',
+            count: properties.length,
+            data: properties
+        });
+        
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getPropertyViewStats = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Invalid property ID', statusCode: 400 });
+        }
+
+        const { propertyId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+            return next({ message: 'Invalid property ID', statusCode: 400 });
+        }
+
+        const property = await propertyModel
+            .findOne({ _id: propertyId })
+            .select('title totalViews uniqueViews')
+            .lean();
+
+        if (!property) {
+            return next({ message: 'Property not found', statusCode: 404 });
+        }
+
+        if (id != property.landLordId) {
+            return next({
+                message: 'You can only view for your property',
+                statusCode: 400
+            })
+        }
+
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+        const perDay = await propertyViewModel.aggregate([
+            { $match: { property: new mongoose.Types.ObjectId(id), createdAt: { $gte: since } } },
+            { $group: {
+                _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+                newViewers: { $sum: 1 }
+            } },
+            { $sort: { _id: 1 } }
+        ]);
+
+        return res.status(200).json({ data: { ...property, last30Days: perDay } });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.saveProperty = async (req, res, next) => {
+    try {
+        const { id }  = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Unauthorised',
+                statusCode: 404
+            })
+        }
+
+        const { propertyId } = req.params
+
+        if(!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: "Property not found",
+                statusCode: 400
+            })
+        }
+
+        const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId },
+      { saved: true },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found',
+                statusCode: 404
+            });
+        }
+
+        res.status(200).json({
+            message: 'property saved successfully'
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+exports.unsaveProperty = async (req, res, next) => {
+    try {
+        const { id }  = req.user;
+
+        if (!id) {
+            return next({
+                message: 'Unauthorised',
+                statusCode: 404
+            })
+        }
+
+        const { propertyId } = req.params
+
+        if(!propertyId || !mongoose.isValidObjectId(propertyId)) {
+            return next({
+                message: "Property not found",
+                statusCode: 400
+            })
+        }
+
+        const property = await propertyModel.findOneAndUpdate(
+      { _id: propertyId },
+      { saved: false },
+      { new: true, runValidators: true }
+    )
+
+    if (!property) {
+            return next({
+                message: 'Property not found ',
+                statusCode: 404
+            });
+        }
+
+        res.status(200).json({
+            message: 'property unsaved successfully'
+        })
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getSavedPropertiesByUser = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+        
+        if (!id) {
+            return next({
+                message: 'Invalid User ID',
+                statusCode: 400
+            })
+        }
+
+        const properties = await propertyModel.find({ landLordId: req.user.id, saved: { $ne: false }, isDeleted: { $ne: true } }).select('title rent city state streetAddress availability gallery createdAt').sort({ createdAt: -1 }).lean()
+
+        if (properties.length === 0) {
+            return res.status(200).json({
+                message: 'No Properties to display'
+            })
+        }
+
+        return res.status(200).json({
+            message: properties.length
+                ? 'Archived properties retrieved successfully'
+                : 'No archived properties to display',
+            count: properties.length,
+            data: properties
+        });
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
     }
 }
