@@ -255,7 +255,7 @@ exports.resetPassword = async (req, res, next) => {
         const emailOptions = {
             email: user.email,
             subject: "Password Reset Successful",
-            html: resetPasswordSuccessfulTemplate(user.fullName),
+            html: resetPasswordSuccessfulTemplate(user.fullName, OTP),
         }
 
         await sendBrevoEmail(emailOptions);
@@ -379,7 +379,6 @@ exports.refresh = async (req, res, next) => {
             return res.status(401).json({ message: 'Invalid or expired refresh token' });
         }
 
-        // The token must match the one stored in Redis
         const stored = await redisClient.get(`refresh_${decoded.id}`);
         if (!stored || stored !== token) {
             return res.status(401).json({ message: 'Refresh token revoked' });

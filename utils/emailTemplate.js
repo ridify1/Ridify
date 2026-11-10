@@ -66,7 +66,7 @@ exports.signUpTemplate = (name, otp) => {
     `
 }
 
-exports.resetPasswordTemplate = (data)=> {
+exports.resetPasswordTemplate = (name, otp)=> {
     return `
     <!DOCTYPE html>
 <html lang="en">
@@ -103,13 +103,13 @@ exports.resetPasswordTemplate = (data)=> {
                             <td class="content" style="padding: 40px; text-align: center; color: #333333;">
                                 <h2 style="margin: 0 0 15px; font-size: 22px; font-weight: 700; color: #1a1a1a;">Password Reset</h2>
                                 <p style="font-size: 16px; line-height: 1.5; margin: 0 0 25px; color: #666666;">
-                                    Hi ${data.name}, we received a request to reset your password. Use the code below to proceed:
+                                    Hi ${name}, we received a request to reset your password. Use the code below to proceed:
                                 </p>
                                 
                                 <!-- OTP Box -->
                                 <div style="background-color: #f8fafc; border: 2px dashed #00d2ff; border-radius: 12px; padding: 25px; margin: 20px 0;">
                                     <span class="otp-code" style="font-family: 'Courier New', Courier, monospace; font-size: 38px; font-weight: bold; letter-spacing: 10px; color: #1a1a1a; display: block;">
-                                        ${data.otp}
+                                        ${otp}
                                     </span>
                                 </div>
 
