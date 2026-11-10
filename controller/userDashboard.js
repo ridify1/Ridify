@@ -175,6 +175,7 @@ exports.getPropertiesByLocation = async (req, res, next) => {
 };
 
 const ARTISAN_CATEGORIES = ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Curlinary', 'Security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null']; 
+const PUBLIC_FIELDS = 'fullName image categoryForJob city state createdAt';
 
 exports.getArtisansByCategory = async (req, res, next) => {
     try {
@@ -208,7 +209,7 @@ exports.getArtisansByCategory = async (req, res, next) => {
         };
 
         const [artisans, total] = await Promise.all([
-            userModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            userModel.find(filter).select(PUBLIC_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
             userModel.countDocuments(filter)
         ]);
 
@@ -220,6 +221,7 @@ exports.getArtisansByCategory = async (req, res, next) => {
             totalPages: Math.ceil(total / limit),
             data: artisans
         });
+
     } catch (error) {
         return next({ message: error.message, statusCode: 500 });
     }
@@ -261,18 +263,19 @@ exports.getArtisansByLocation = async (req, res, next) => {
         };
         
         const [artisans, total] = await Promise.all([
-            artisanModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            artisanModel.find(filter).select(PUBLIC_FIELDS).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
             artisanModel.countDocuments(filter)
         ]);
-        
+
         return res.status(200).json({
-            message: 'artisans retrieved successfully',
+            message: 'Artisans retrieved successfully',
             count: artisans.length,
             total,
             page,
             totalPages: Math.ceil(total / limit),
             data: artisans
         });
+
     } catch (error) {
         return next({ message: error.message, statusCode: 500 });
     }
@@ -355,4 +358,4 @@ exports.getPropertiesByLocationAndCategory = async (req, res, next) => {
             statusCode: 500
         });
     }
-};;
+};

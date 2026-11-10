@@ -129,11 +129,6 @@ const propertyUploadSchema = new mongoose.Schema({
     },
     totalViews:  { type: Number, default: 0 },
     uniqueViews: { type: Number, default: 0 },
-    saved: {
-        type: String,
-        type: Boolean,
-        default: false
-    },
 }, {timestamps: true})
 
 const PropertyUpload = mongoose.model('PropertyUpload', propertyUploadSchema)

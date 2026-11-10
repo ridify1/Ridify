@@ -112,15 +112,10 @@ exports.getAgentInspections = async (req, res, next) => {
             .sort({ createdAt: -1 })
             .lean();
 
-        if (inspections.length === 0) {
-            return res.status(200).json({
-                message: 'No inspection requests to display',
-                statusCode: 400
-            })
-        }
-
         return res.status(200).json({
-            message: 'Inspections retrieved successfully',
+            message: inspections.length === 0
+                ? 'No inspection requests to display'
+                : 'Inspections retrieved successfully',
             count: inspections.length,
             data: inspections
         });
@@ -145,24 +140,16 @@ exports.getAgentInspection = async (req, res, next) => {
 
         const { inspectionId } = req.params
 
-        const inspections = await inspectionModel.find({ inspectionId })
+        const inspection = await inspectionModel.findById(inspectionId)
             .populate('propertyId', 'title description state city streetAddress rent status category')
             .populate('inspectorId', 'fullName email phoneNumber')
-            .sort({ createdAt: -1 })
             .lean();
 
-        if (id != inspections.landLordId ) {
+       if (!inspection) {
             return next({
-                message: 'You can only view your own inspection request',
-                statusCode: 400
-            })
-        }
-
-        if (inspections.length === 0) {
-            return res.status(200).json({
-                message: 'No inspection requests to display',
-                statusCode: 400
-            })
+                message: 'Inspection request not found',
+                statusCode: 404
+            });
         }
 
         return res.status(200).json({
@@ -178,35 +165,40 @@ exports.getAgentInspection = async (req, res, next) => {
     }
 }
 
+const ALLOWED_STATUSES = ['accepted', 'declined', 'completed', 'cancelled'];
+
+const TRANSITIONS = {
+    pending:   ['accepted', 'declined', 'cancelled'],
+    accepted:  ['completed', 'cancelled'],
+    declined:  [],
+    completed: [],
+    cancelled: []
+};
+
 exports.updateInspectionStatus = async (req, res, next) => {
     try {
         const { id } = req.user;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return next({
-                message: 'User not authenticated.',
-                statusCode: 401
-            })
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated.', statusCode: 401 });
         }
 
         const { inspectionId } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(inspectionId)) {
+            return next({ message: 'Invalid inspection ID', statusCode: 400 });
+        }
+
+        const status = String(req.body.status || '').trim().toLowerCase();
+        const declineReason = String(req.body.declineReason || '').trim().slice(0, 500);
+
+        if (!ALLOWED_STATUSES.includes(status)) {
             return next({
-                message: 'Invalid inspection ID',
+                message: `Invalid status. Must be one of: ${ALLOWED_STATUSES.join(', ')}`,
                 statusCode: 400
             });
         }
 
-        const { status, declineReason } = req.body;
-
-        if (!status || !['accepted', 'declined', 'completed', 'cancelled'].includes(status)) {
-            return next({
-                message: 'Invalid status. Must be one of: accepted, declined, completed, cancelled',
-                statusCode: 400
-            });
-        }
-        
         if (status === 'declined' && !declineReason) {
             return next({
                 message: 'Decline reason is required when declining an inspection.',
@@ -217,10 +209,7 @@ exports.updateInspectionStatus = async (req, res, next) => {
         const inspection = await inspectionModel.findById(inspectionId);
 
         if (!inspection) {
-            return next({
-                message: 'Inspection not found.',
-                statusCode: 404
-            });
+            return next({ message: 'Inspection not found.', statusCode: 404 });
         }
 
         if (String(inspection.landLordId) !== String(id)) {
@@ -230,12 +219,15 @@ exports.updateInspectionStatus = async (req, res, next) => {
             });
         }
 
-        inspection.status = status;
-        if (status === 'declined') {
-            inspection.declineReason = declineReason;
-        } else {
-            inspection.declineReason = undefined; 
+        if (!TRANSITIONS[inspection.status]?.includes(status)) {
+            return next({
+                message: `Cannot change an inspection from "${inspection.status}" to "${status}".`,
+                statusCode: 409
+            });
         }
+
+        inspection.status = status;
+        inspection.declineReason = status === 'declined' ? declineReason : undefined;
 
         await inspection.save();
 
@@ -243,43 +235,58 @@ exports.updateInspectionStatus = async (req, res, next) => {
             message: 'Inspection status updated successfully',
             data: inspection
         });
-
-    } catch (error){
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
     }
-}
+};
+
+const INSPECTION_STATUSES = ['pending', 'accepted', 'declined', 'completed', 'cancelled'];
 
 exports.getInspectorsRequests = async (req, res, next) => {
     try {
         const { id } = req.user;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
             return next({
                 message: 'User not authenticated.',
                 statusCode: 401
-            })
+            });
         }
 
-        const inspections = await inspectionModel.find({ inspectorId: id })
+        const filter = { inspectorId: id };
+
+        const statusInput = String(req.query.status || '').trim().toLowerCase();
+
+        if (statusInput) {
+            if (!INSPECTION_STATUSES.includes(statusInput)) {
+                return next({
+                    message: `Status must be one of: ${INSPECTION_STATUSES.join(', ')}`,
+                    statusCode: 400
+                });
+            }
+            filter.status = statusInput;
+        }
+
+        const inspections = await inspectionModel.find(filter)
             .populate('propertyId', 'title description state city streetAddress rent status category')
             .populate('landLordId', 'fullName email phoneNumber')
             .sort({ createdAt: -1 })
             .lean();
 
         return res.status(200).json({
-            message: 'Inspection requests retrieved successfully',
+            message: inspections.length === 0
+                ? 'No inspection requests to display'
+                : 'Inspection requests retrieved successfully',
+            count: inspections.length,
             data: inspections
         });
-    }catch (error) {
+    } catch (error) {
         return next({
             message: error.message,
             statusCode: 500
-        })
+        });
     }
-}
+};
 
 exports.getInspectorsInspection = async (req, res, next) => {
     try {
@@ -294,29 +301,21 @@ exports.getInspectorsInspection = async (req, res, next) => {
 
         const { inspectionId } = req.params
 
-        const inspections = await inspectionModel.find({ inspectionId })
+        const inspections = await inspectionModel.findOne({ _id: inspectionId, inspectorId: id })
             .populate('propertyId', 'title description state city streetAddress rent status category')
             .populate('inspectorId', 'fullName email phoneNumber')
             .sort({ createdAt: -1 })
             .lean();
 
-        if (id != inspections.inspectorId ) {
-            return next({
-                message: 'You can only view your own inspection request',
-                statusCode: 400
-            })
-        }
-
-        if (inspections.length === 0) {
-            return res.status(200).json({
-                message: 'No inspection requests to display',
-                statusCode: 400
+        if (!inspections) {
+            return res.status(404).json({
+                message: 'Inspection request not found',
+                statusCode: 404
             })
         }
 
         return res.status(200).json({
-            message: 'Inspections retrieved successfully',
-            count: inspections.length,
+            message: 'Inspection request retrieved successfully',
             data: inspections
         });
     }catch(error){

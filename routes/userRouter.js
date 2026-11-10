@@ -2,7 +2,7 @@ const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login
 const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
-const { dashboard, getPropertiesByCategory, getArtisansByCategory, getPropertiesByLocation, getArtisansByLocation } = require('../controller/userDashboard');
+const { dashboard, getPropertiesByCategory, getArtisansByCategory, getPropertiesByLocation, getArtisansByLocation, getPropertiesByLocationAndCategory } = require('../controller/userDashboard');
 const express = require('express')
 const router = require('express').Router();
 
@@ -777,12 +777,597 @@ router.post('/refresh', refresh);
 
 router.post('/logout', authenticate, logout);
 
+/**
+ * @swagger
+ * /api/v1/user/getPropertiesByCategory:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Get properties by category
+ *     description: Returns a paginated list of properties in the selected category, newest first. Archived and deleted properties are left out. The category is not case-sensitive.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [apartment, studio, serviced, shop]
+ *           example: apartment
+ *         description: The property category to filter by
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of properties per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of properties on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 57
+ *                   description: Total number of properties in this category
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f567
+ *                       title:
+ *                         type: string
+ *                         example: Modern Studio in Yaba
+ *                       category:
+ *                         type: string
+ *                         example: studio
+ *                       city:
+ *                         type: string
+ *                         example: Yaba
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       price:
+ *                         type: number
+ *                         example: 1200000
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, missing category, or category is not one of the allowed values
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Category must be one of: apartment, studio, serviced, shop"
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+
 router.get('/getPropertiesByCategory', authenticate, getPropertiesByCategory);
 
-router.get('/getByLocation', authenticate, getPropertiesByLocation)
+/**
+ * @swagger
+ * /api/v1/user/getByLocation:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Search properties by city, state or name
+ *     description: Returns a paginated list of properties whose city, state or name matches the search text, newest first. The match is partial and not case-sensitive. Archived and deleted properties are left out.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cityOrStateOrName
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: ikeja
+ *         description: City, state or property name to search for
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of properties per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully. An empty list is returned when nothing matches.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of properties on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 34
+ *                   description: Total number of matching properties
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f567
+ *                       title:
+ *                         type: string
+ *                         example: 3 Bedroom Flat in Ikeja
+ *                       category:
+ *                         type: string
+ *                         example: apartment
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       price:
+ *                         type: number
+ *                         example: 2500000
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, or no search text was provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Provide a city, state, or name
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getByLocation', authenticate, getPropertiesByLocation);
 
-router.get('/getArtisansByCategory', authenticate, getArtisansByCategory)
+/**
+ * @swagger
+ * /api/v1/user/getArtisansByCategory:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Get artisans by category
+ *     description: Returns a paginated list of verified artisans in the selected job category, newest first. Only public profile fields are returned. The category is not case-sensitive. Archived and deleted accounts are left out.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: categoryForJob
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum:
+ *             - Electrician
+ *             - Plumber
+ *             - Painter
+ *             - HVAC
+ *             - Carpenter
+ *             - Curlinary
+ *             - Security
+ *             - welder
+ *             - mechanic
+ *             - cleaner
+ *             - tailor/fashionDesigner
+ *             - otherSkilledWork
+ *           example: Plumber
+ *         description: The artisan category to filter by
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of artisans per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Artisans retrieved successfully. An empty list is returned when no artisan matches.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisans retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of artisans on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 45
+ *                   description: Total number of artisans in this category
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f111
+ *                       fullName:
+ *                         type: string
+ *                         example: John Adebayo
+ *                       image:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/john.jpg
+ *                       categoryForJob:
+ *                         type: string
+ *                         example: Plumber
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, missing category, or category is not one of the allowed values
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Category must be one of: Electrician, Plumber, Painter, HVAC"
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getArtisansByCategory', authenticate, getArtisansByCategory);
 
-router.get('/getArtisanByLocation', authenticate, getArtisansByLocation)
+/**
+ * @swagger
+ * /api/v1/user/getArtisanByLocation:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Search users by city or state
+ *     description: Returns a paginated list of verified users whose city or state matches the search text, newest first. The match is partial and not case-sensitive. Only public profile fields are returned. Archived and deleted accounts are left out.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cityOrState
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: ikeja
+ *         description: City or state to search for
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of artisans per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Artisans retrieved successfully. An empty list is returned when nothing matches.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Artisans retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of artisans on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 38
+ *                   description: Total number of matching artisans
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f111
+ *                       fullName:
+ *                         type: string
+ *                         example: John Adebayo
+ *                       image:
+ *                         type: string
+ *                         example: https://res.cloudinary.com/demo/image/upload/john.jpg
+ *                       categoryForJob:
+ *                         type: string
+ *                         example: Plumber
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, or no city or state was provided
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Provide a city or a state
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getArtisanByLocation', authenticate, getArtisansByLocation);
+
+/**
+ * @swagger
+ * /api/v1/user/getByCategoryAndLocation:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Search properties by location and category
+ *     description: Returns a paginated list of properties in the selected category whose city, state or name matches the search text, newest first. Both the search text and the category are required. The location match is partial and the category match is not case-sensitive. Archived and deleted properties are left out.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: cityOrStateOrName
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: ikeja
+ *         description: City, state or property name to search for
+ *       - in: query
+ *         name: category
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [apartment, studio, serviced, shop]
+ *           example: apartment
+ *         description: The property category to filter by
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of properties per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully. An empty list is returned when nothing matches.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of properties on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 34
+ *                   description: Total number of matching properties
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 2
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f567
+ *                       title:
+ *                         type: string
+ *                         example: 3 Bedroom Flat in Ikeja
+ *                       category:
+ *                         type: string
+ *                         example: apartment
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       price:
+ *                         type: number
+ *                         example: 2500000
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, missing search text or category, or category is not one of the allowed values
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Category must be one of: apartment, studio, serviced, shop"
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getByCategoryAndLocation', authenticate, getPropertiesByLocationAndCategory);
 
 module.exports = router

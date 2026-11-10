@@ -12,6 +12,7 @@ const agencyRouter = require('./routes/jobAgency')
 const hrRouter = require('./routes/employerKyc')
 const artisanRouter = require('./routes/artisanKyc')
 const inspectionRouter = require('./routes/inspection')
+const savedRouter = require('./routes/savedProperty')
 const cookieParser = require('cookie-parser');
 const redisClient = require('./config/redis');
 
@@ -87,6 +88,8 @@ app.use('/api/v1/hr', hrRouter)
 app.use('/api/v1/artisan', artisanRouter)
 
 app.use('/api/v1/inspection', inspectionRouter)
+
+app.use('/api/v1/saved', savedRouter)
 
 app.use((req, res, next) => {
     next({
