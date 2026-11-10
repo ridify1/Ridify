@@ -292,13 +292,6 @@ const query = identifier.includes('@')
 
 const user = await userModel.findOne(query);
 
-if(user.role === 'admin'){
-            return next({
-                message: `Access denied: login as an Admin to continue`,
-                statusCode: 403
-            })
-        }
-
 const invalid = () =>
             next({ message: 'Invalid credentials', statusCode: 401 });
 
@@ -347,12 +340,11 @@ const invalid = () =>
         const accessToken = generateAccessToken(user);
 const refreshToken = generateRefreshToken(user);
 
-// set() overwrites, so you don't need del() first. Await it.
 await redisClient.set(`refresh_${user._id}`, refreshToken, { EX: REFRESH_TTL_SECONDS });
 
 res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,                                  // JS can't read it (protects against XSS)
-    secure: process.env.NODE_ENV === 'production',   // HTTPS only in production
+    httpOnly: true,                                  
+    secure: process.env.NODE_ENV === 'production',   
     sameSite: 'strict',
     maxAge: REFRESH_TTL_SECONDS * 1000
 });

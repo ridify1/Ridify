@@ -4,6 +4,7 @@
  const jobAgencyModel = require('../model/jobAgencyKyc')
  const hrKycModel = require('../model/employerKyc')
  const artisanKycModel = require('../model/artisanKyc')
+ const inspectionModel = require('../model/inspection')
  const bcrypt = require('bcrypt');
  const jwt = require('jsonwebtoken');
  const mongoose = require('mongoose');
@@ -1490,3 +1491,87 @@ exports.getLandLordKycById = async (req, res, next) => {
         return next({ message: error.message, statusCode: 500 });
     }
 };
+
+exports.getAllInspections = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated',
+                statusCode: 401
+            })
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const inspections = await inspectionModel
+            .find()
+            .populate('propertyId', 'title description state city streetAddress rent status propertyType')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        return res.status(200).json({
+            message: inspections.length
+                ? 'Inspections retrieved successfully'
+                : 'No inspection requests to display',
+            count: inspections.length,
+            data: inspections
+        });
+
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}
+
+exports.getAllInspectionsByLandlord = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: 'User not authenticated.',
+                statusCode: 401
+            })
+        }
+
+        const admin = await userModel.findById(id).select('role');
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { landLordId } = req.params;
+
+        const inspections = await inspectionModel.find({ landLordId })
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        if (inspections.length === 0) {
+            return res.status(200).json({
+                message: 'No inspection requests to display',
+                statusCode: 400
+            })
+        }
+
+        return res.status(200).json({
+            message: 'Inspections retrieved successfully',
+            count: inspections.length,
+            data: inspections
+        });
+
+    } catch (error) {
+        return next({
+            message: error.message,
+            statusCode: 500
+        })
+    }
+}

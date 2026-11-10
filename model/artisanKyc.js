@@ -29,7 +29,7 @@ const artisanKycSchema = new mongoose.Schema({
     },
     primaryTrade: {
         type: String,
-        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
+        enum: ['electrician', 'plumber', 'painter', 'HVAC', 'carpenter', 'curlinary', 'security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
         required: true
     },
     yearsOfExperience: {

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middleware/multer');
-const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload, getPropertiesByLandLord, getPropertyByLandLord, archiveProperty, changeStatus, deleteProperty, unarchiveProperty, getAchivedPropertiesByLandLord, getPropertiesByStatus} = require('../controller/landLordKyc');
+const { landLordKyc, propertyUpload, getLandLordKyc, updatePropertyUpload, getPropertiesByLandLord, getPropertyByLandLord, archiveProperty, changeStatus, deleteProperty, unarchiveProperty, getAchivedPropertiesByLandLord, getPropertiesByStatus, getAllPropertiesByStatus, getPropertyViewStats} = require('../controller/landLordKyc');
 const { authenticate } = require('../middleware/auth');
 
 /**
@@ -1076,5 +1076,226 @@ router.get('/getByStatus', authenticate, getPropertiesByStatus)
  */
 
 router.delete('/deleteProperty/:propertyId', authenticate, deleteProperty)
+
+/**
+ * @swagger
+ * /api/v1/landlord/getAllByStatus:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get properties by status
+ *     description: Returns a paginated list of properties with the selected status, newest first. The status is not case-sensitive. Archived and deleted properties are left out.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [available, rented, sold, pending]
+ *           example: available
+ *         description: The property status to filter by
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of properties per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully. An empty list is returned when nothing matches.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Properties retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of properties on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 48
+ *                   description: Total number of properties with this status
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 64f1c2a9e4b0a1d2c3e4f567
+ *                       title:
+ *                         type: string
+ *                         example: 3 Bedroom Flat in Ikeja
+ *                       category:
+ *                         type: string
+ *                         example: apartment
+ *                       status:
+ *                         type: string
+ *                         example: available
+ *                       city:
+ *                         type: string
+ *                         example: Ikeja
+ *                       state:
+ *                         type: string
+ *                         example: Lagos
+ *                       price:
+ *                         type: number
+ *                         example: 2500000
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-10T09:30:00.000Z
+ *       400:
+ *         description: Invalid user ID, missing status, or status is not one of the allowed values
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Status must be one of: available, rented, sold, pending"
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/getAllByStatus', authenticate, getAllPropertiesByStatus);
+
+/**
+ * @swagger
+ * /api/v1/landlord/viewStats/{propertyId}:
+ *   get:
+ *     tags:
+ *       - Landlord KYC and Property Upload
+ *     summary: Get view statistics for a property
+ *     description: Returns the total views, unique viewers, and the number of new viewers per day for the last 30 days. Only the landlord who owns the property can access its stats.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 64f1c2a9e4b0a1d2c3e4f567
+ *         description: The ID of the property to get stats for
+ *     responses:
+ *       200:
+ *         description: Property view stats retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property view stats retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 64f1c2a9e4b0a1d2c3e4f567
+ *                     title:
+ *                       type: string
+ *                       example: 3 Bedroom Flat in Ikeja
+ *                     totalViews:
+ *                       type: integer
+ *                       example: 245
+ *                       description: Every time the property was opened
+ *                     uniqueViews:
+ *                       type: integer
+ *                       example: 98
+ *                       description: Number of different viewers
+ *                     last30Days:
+ *                       type: array
+ *                       description: New viewers per day, oldest first. Days with no new viewers are not listed.
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           date:
+ *                             type: string
+ *                             example: 2026-11-09
+ *                           newViewers:
+ *                             type: integer
+ *                             example: 7
+ *       400:
+ *         description: Invalid user ID or invalid property ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Invalid property ID
+ *       401:
+ *         description: Access token is missing, invalid or expired
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Access token expired or invalid
+ *       403:
+ *         description: The property belongs to another landlord
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: You can only view stats for your own property
+ *       404:
+ *         description: No property found with the provided ID
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Property not found
+ *       500:
+ *         description: Internal server error
+ */
+router.get('/viewStats/:propertyId', authenticate, getPropertyViewStats);
 
 module.exports = router;
