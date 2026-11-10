@@ -15,7 +15,7 @@ const router = express.Router();
  * /api/v1/saved/saveProperty/{propertyId}:
  *   post:
  *     tags:
- *       - Property
+ *       - Save Properties
  *     summary: Save a property
  *     description: Saves a property to the authenticated user's list of saved properties. A user can save a given property only once.
  *     security:
@@ -99,7 +99,7 @@ router.post('/saveProperty/:propertyId', authenticate, saveProperty);
  * /api/v1/saved/getAllSaved:
  *   get:
  *     tags:
- *       - Property
+ *       - Save Properties
  *     summary: Get all saved properties
  *     description: Returns all properties saved by the authenticated user, newest first. Saved properties that have since been deleted or archived are left out.
  *     security:
@@ -173,7 +173,7 @@ router.get('/getAllSaved', authenticate, getSavedProperties);
  * /api/v1/saved/unSaveProperty/{propertyId}:
  *   delete:
  *     tags:
- *       - Property
+ *       - Save Properties
  *     summary: Remove a property from saved list
  *     description: Removes a property from the authenticated user's saved properties. Only the user's own saved entry is affected.
  *     security:
@@ -241,7 +241,7 @@ router.delete('/unSaveProperty/:propertyId', authenticate, unsaveProperty);
  * /api/v1/saved/getOneSaved/{propertyId}:
  *   get:
  *     tags:
- *       - Property
+ *       - Save Properties
  *     summary: Get one saved property
  *     description: Returns a single property from the authenticated user's saved list, including the full property details. Only the user's own saved entry can be retrieved.
  *     security:
