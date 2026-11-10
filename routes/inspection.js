@@ -15,7 +15,7 @@ const router = express.Router();
  * /api/v1/inspection/createInspection:
  *   post:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Request a property inspection
  *     description: Creates an inspection request for a property on behalf of the authenticated user. The property must exist, must not be deleted, must be available, and must not belong to the requester. The preferred date must be in the future. A user cannot have more than one open (pending or accepted) request for the same property. The landlord is taken from the property, not from the request.
  *     security:
@@ -105,7 +105,7 @@ router.post('/createInspection', authenticate, createInspection)
  * /api/v1/inspection/getAgentsInspections:
  *   get:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Get inspection requests for the logged-in landlord
  *     description: Returns all inspection requests addressed to the authenticated landlord, newest first. Each request includes the details of the property and the contact details of the user who requested the inspection. Only requests where the authenticated user is the landlord are returned. If there are no requests, an empty list is returned with a 200 status.
  *     security:
@@ -212,7 +212,7 @@ router.get('/getAgentsInspections', authenticate, getAgentInspections);
  * /api/v1/inspection/getSingleInspection/{inspectionId}:
  *   get:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Get a single inspection request for the logged-in landlord
  *     description: Returns one inspection request by its id, including the details of the property and the contact details of the user who requested the inspection. Only the landlord the request is addressed to can retrieve it. If the request does not exist or belongs to another landlord, a 404 is returned.
  *     security:
@@ -326,7 +326,7 @@ router.get('/getSingleInspection/:inspectionId', authenticate, getAgentInspectio
  * /api/v1/inspection/updateInspections/{inspectionId}:
  *   patch:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Update the status of an inspection request
  *     description: Allows the landlord an inspection request is addressed to, to accept, decline, complete or cancel it. Only the landlord who owns the request can update it. Allowed changes are pending to accepted, declined or cancelled, and accepted to completed or cancelled. Declined, completed and cancelled requests cannot be changed again. A decline reason is required when declining.
  *     security:
@@ -420,7 +420,7 @@ router.patch('/updateInspections/:inspectionId', authenticate, updateInspectionS
  * /api/v1/inspection/inspectorsRequests:
  *   get:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Get the inspection requests made by the logged-in user
  *     description: Returns all inspection requests the authenticated user has made, newest first. Each request includes the details of the property and the contact details of the landlord it was sent to. Results can optionally be filtered by status. Only requests made by the authenticated user are returned. If there are none, an empty list is returned with a 200 status.
  *     security:
@@ -542,7 +542,7 @@ router.get('/inspectorsRequests', authenticate, getInspectorsRequests);
  * /api/v1/inspection/singleInspectorRequest/{inspectionId}:
  *   get:
  *     tags:
- *       - Inspection KYC and Property Upload
+ *       - Inspection
  *     summary: Get a single inspection request made by the logged-in user
  *     description: Returns one inspection request by its id, including the details of the property and the contact details of the landlord it was sent to. Only the user who made the request can retrieve it. If the request does not exist or was made by another user, a 404 is returned.
  *     security:
