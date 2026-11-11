@@ -169,7 +169,7 @@ const parseList = (value) => {
 };
 
 exports.propertyUpload = async (req, res, next) => {
-    // works with both upload.array('gallery') and upload.fields([{ name: 'gallery' }])
+    
     const galleryFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
 
     try {

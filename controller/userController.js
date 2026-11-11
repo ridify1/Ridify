@@ -337,6 +337,13 @@ const invalid = () =>
             });
         }
 
+    if(user.isDeleted !== false){
+        return next({
+        message: "User does not exist",
+        statusCode: 400,
+      });
+    }
+
         const accessToken = generateAccessToken(user);
 const refreshToken = generateRefreshToken(user);
 
