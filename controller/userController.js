@@ -36,13 +36,13 @@ exports.createUser = async (req, res, next) => {
 
         const emailExist = await userModel.findOne({email: email.toLowerCase()});
 
-        if(emailExist.isDeleted !== false){
+        if(emailExist && emailExist.isDeleted !== false){
             return res.status(400).json({
                 message: `User with email ${email} was deleted. Please contact support for assistance.`
             })
         }
 
-        if (emailExist) {
+        if (emailExist && emailExist.isDeleted !== true) {
             return res.status(400).json({
                 message: `User with email ${email} already exist`
             })

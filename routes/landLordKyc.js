@@ -180,7 +180,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                 example: apartment
  *               category:
  *                 type: string
- *                 example: rent
+ *                 example: shop
  *               beds:
  *                 type: integer
  *                 example: 3
