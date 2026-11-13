@@ -8,37 +8,32 @@ exports.createInspection = async (req, res, next) => {
     try {
         const { id } = req.user;
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return next({
-                message: 'User not authenticated.',
-                statusCode: 401
-            })
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated.', statusCode: 401 });
         }
-        const { propertyId, landLordId, inspectorId, preferredDate, preferredTime, message } = req.body;
 
-        if (!propertyId || !landLordId || !inspectorId || !preferredDate) {
-            return next({
-                message: 'Property ID, and Preferred Date are required.',
-                statusCode: 400
-            });
-        }
+        const { propertyId } = req.params;
 
         if (!mongoose.Types.ObjectId.isValid(propertyId)) {
             return next({ message: 'Invalid property ID', statusCode: 400 });
-         }
+        }
+
+        const { preferredDate } = req.body;
+        const preferredTime = String(req.body.preferredTime || '').trim().slice(0, 50);
+        const message = String(req.body.message || '').trim().slice(0, 500);
+
+        if (!preferredDate) {
+            return next({ message: 'Preferred date is required.', statusCode: 400 });
+        }
 
         const date = new Date(preferredDate);
         if (Number.isNaN(date.getTime()) || date < new Date()) {
             return next({ message: 'Choose a valid future date', statusCode: 400 });
-        }   
-
+        }
 
         const user = await userModel.findById(id);
         if (!user) {
-            return next({
-                message: 'User not found.',
-                statusCode: 404
-            });
+            return next({ message: 'User not found.', statusCode: 404 });
         }
 
         const property = await propertyModel.findOne({
@@ -47,53 +42,47 @@ exports.createInspection = async (req, res, next) => {
         });
 
         if (!property) {
-            return next({
-                message: 'Property not found.',
-                statusCode: 404
-            });
+            return next({ message: 'Property not found.', statusCode: 404 });
         }
 
         if (String(property.landLordId) === String(id)) {
-        return next({ message: 'You cannot inspect your own property', statusCode: 400 });
+            return next({ message: 'You cannot inspect your own property', statusCode: 400 });
         }
 
-        if(property.status !== 'available') {
+        if (property.status !== 'available') {
             return next({ message: 'This property is not available for inspection', statusCode: 400 });
         }
 
         const existing = await inspectionModel.findOne({
-        propertyId,
-        inspectorId: id,
-        status: { $in: ['pending', 'accepted'] }
+            propertyId,
+            inspectorId: id,
+            status: { $in: ['pending', 'accepted'] }
         });
 
         if (existing) {
-        return next({ message: 'You already have an open request for this property', statusCode: 409 });
+            return next({ message: 'You already have an open request for this property', statusCode: 409 });
         }
 
-        const inspect = {
-            propertyId: propertyId,
+        const newInspection = await inspectionModel.create({
+            propertyId,
             landLordId: property.landLordId,
             inspectorId: id,
             preferredDate: date,
             preferredTime,
             message
-        };
-
-        const newInspection = await inspectionModel.create(inspect);
+        });
 
         return res.status(201).json({
             message: 'Inspection request sent successfully',
             data: newInspection
         });
-
-    }catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
+    } catch (error) {
+        if (error.code === 11000) {
+            return next({ message: 'You already have an open request for this property', statusCode: 409 });
+        }
+        return next({ message: error.message, statusCode: 500 });
     }
-}
+};
 
 exports.getAgentInspections = async (req, res, next) => {
     try {
