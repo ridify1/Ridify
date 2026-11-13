@@ -466,8 +466,8 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *                 items:
  *                   type: string
  *                 example:
- *                   - swimming pool
- *                   - security
+ *                   - pool
+ *                   - cctv
  *                   - parking
  *                 description: Can be sent as repeated fields, comma-separated values, or a JSON array string. Cannot be empty if provided.
  *
@@ -559,8 +559,8 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *                       items:
  *                         type: string
  *                       example:
- *                         - swimming pool
- *                         - security
+ *                         - pool
+ *                         - cctv
  *
  *                     gallery:
  *                       type: array
