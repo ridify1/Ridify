@@ -70,7 +70,7 @@ exports.getSavedProperties = async (req, res, next) => {
             })
         }
 
-        const savedProperties = await savedPropertyModel
+        const savedProperties = await savedModel
             .find({ user: id })
             .populate({
                 path: 'property',
