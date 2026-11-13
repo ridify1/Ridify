@@ -77,7 +77,6 @@ const propertyUploadSchema = new mongoose.Schema({
         default: null
     },
     archive: {
-        type: String,
         type: Boolean,
         default: false
     },
@@ -100,31 +99,28 @@ const propertyUploadSchema = new mongoose.Schema({
       maxlength: 500,
       default: null
     },
-    gallery: [{
-        type: [String],
-        required: true,
-        get () {
-          const value = this.getDataValue('gallery');
-          return value ? JSON.parse(value) : [];
-        },
-        set(val) {
-          this.setDataValue('gallery', JSON.stringify(val));
-        }
-    }],
-    galleryPublicId: [{
-        type: [String],
-        required: true,
-        get () {
-          const value = this.getDataValue('galleryPublicIds');
-          return value ? JSON.parse(value) : [];
-        },
-        set(val) {
-          this.setDataValue('galleryPublicIds', JSON.stringify(val));
-        }
-    }],
+    gallery: {
+    type: [String],
+    required: true,
+    default: []
+    },
+
+    galleryPublicId: {
+    type: [String],
+    required: true,
+    default: []
+    },
     amenities: {
         type: [String],
         enum: AMENITIES,
+        default: []
+    },
+    video: {
+        type: [String],
+        default: []
+      },
+    videoPublicId: {
+        type: [String],
         default: []
     },
     totalViews:  { type: Number, default: 0 },

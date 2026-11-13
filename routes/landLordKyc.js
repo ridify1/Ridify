@@ -147,7 +147,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *     tags:
  *       - Landlord KYC and Property Upload
  *     summary: Upload a new property
- *     description: Creates a property listing with up to 5 gallery images, which are uploaded to Cloudinary. The authenticated user must have a verified landlord KYC record and an allowed role (landlord, admin, agent, or realtor). All fields are required, and at least one amenity and one gallery image must be provided. The request must be sent as multipart/form-data.
+ *     description: Creates a property listing with up to 5 gallery images and an optional video, which are uploaded to Cloudinary. The authenticated user must have a verified landlord KYC record and an allowed role (landlord, admin, agent, or realtor). All fields except the video are required, and at least one amenity and one gallery image must be provided. The request must be sent as multipart/form-data.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -159,6 +159,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *             required:
  *               - title
  *               - propertyType
+ *               - category
  *               - beds
  *               - baths
  *               - area
@@ -167,8 +168,6 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *               - city
  *               - streetAddress
  *               - rent
- *               - category
- *               - availability
  *               - amenities
  *               - gallery
  *             properties:
@@ -208,10 +207,6 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                 type: string
  *                 example: "2000000"
  *                 description: Must be a positive number. Commas are allowed and stripped (for example 2,000,000).
- *               availability:
- *                 type: string
- *                 enum: [available, not available]
- *                 example: available
  *               amenities:
  *                 type: array
  *                 minItems: 1
@@ -219,7 +214,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                   type: string
  *                   enum: ['24/7 power', water, pool, gym, parking, cctv, furnished, bq, elevator, serviced, wifi, security, playground, clubhouse, laundry, garden, balcony, fireplace, storage, 'pet friendly']
  *                 example: [wifi, pool, parking]
- *                 description: At least one amenity is required.
+ *                 description: At least one amenity is required. Send as repeated fields, a comma-separated string, or a JSON array string.
  *               gallery:
  *                 type: array
  *                 minItems: 1
@@ -228,6 +223,10 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                   type: string
  *                   format: binary
  *                 description: Property images. Between 1 and 5 files.
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional. One property video file.
  *     responses:
  *       201:
  *         description: Property uploaded successfully
@@ -284,9 +283,6 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                     rent:
  *                       type: number
  *                       example: 2000000
- *                     availability:
- *                       type: string
- *                       example: available
  *                     amenities:
  *                       type: array
  *                       items:
@@ -302,6 +298,12 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *                       items:
  *                         type: string
  *                       example: [Ridify/propertyUpload/img1]
+ *                     video:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/video/upload/v1/Ridify/propertyUpload/clip1.mp4
+ *                     videoPublicId:
+ *                       type: string
+ *                       example: Ridify/propertyUpload/clip1
  *       400:
  *         description: A required field is missing, rent is not a valid positive number, or no gallery image was provided
  *       401:
@@ -314,7 +316,7 @@ router.post('/landlord-kyc', authenticate, upload.fields([
  *         description: Internal server error
  */
 
-router.post('/propertyUpload', authenticate, upload.fields([{ name: 'gallery', maxCount: 5 }]), propertyUpload);
+router.post('/propertyUpload', authenticate, upload.fields([{ name: 'gallery', maxCount: 5 }, { name: 'video', maxCount: 1 }]), propertyUpload);
 
 /**
  * @swagger
@@ -397,8 +399,8 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *   put:
  *     tags:
  *       - Landlord KYC and Property Upload
- *     summary: Update a property
- *     description: Updates a property listing owned by the authenticated user. Only the fields you send are changed. If new gallery images are sent, they replace the existing gallery, and the old images are deleted after the update succeeds. The user must have a verified KYC.
+ *     summary: Update a property with images and video
+ *     description: Updates an existing property listing owned by the authenticated user. Only the fields provided in the request are updated. If new gallery images or a video are uploaded, they replace the existing files, and the previous Cloudinary assets are deleted after the update succeeds. The user must have a verified KYC.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -408,7 +410,8 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *         schema:
  *           type: string
  *           example: 6ab2c4d5a675b9e38dc41800
- *         description: The id of the property to update
+ *         description: The ID of the property to update
+ *
  *     requestBody:
  *       required: false
  *       content:
@@ -418,54 +421,72 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *             properties:
  *               title:
  *                 type: string
- *                 example: Spacious 3 Bedroom Apartment
+ *                 example: Modern 4 Bedroom Duplex
+ *
  *               propertyType:
  *                 type: string
- *                 example: apartment
- *                 description: Use a value your property schema accepts
+ *                 example: duplex
+ *                 description: Must match the allowed property types in the property schema
+ *
  *               beds:
  *                 type: integer
- *                 example: 3
+ *                 example: 4
+ *
  *               baths:
  *                 type: integer
- *                 example: 2
+ *                 example: 3
+ *
  *               area:
- *                 type: string
- *                 example: 120 sqm
+ *                 type: number
+ *                 example: 350
+ *
  *               description:
  *                 type: string
- *                 example: A bright apartment close to schools and shopping centres
+ *                 example: Beautiful duplex located in a secure neighbourhood
+ *
  *               state:
  *                 type: string
  *                 example: Lagos
+ *
  *               city:
  *                 type: string
- *                 example: Ikeja
+ *                 example: Lekki
+ *
  *               streetAddress:
  *                 type: string
- *                 example: 45 Allen Avenue
+ *                 example: 12 Admiralty Way
+ *
  *               rent:
  *                 type: number
- *                 example: 2500000
- *                 description: Plain number. Commas are accepted, but words such as "2 million" are rejected.
- *               availability:
- *                 type: string
- *                 example: available
- *                 description: Use a value your property schema accepts
+ *                 example: 5000000
+ *                 description: Rent must be a valid positive number. Commas are accepted but text values are rejected.
+ *
  *               amenities:
  *                 type: array
  *                 items:
  *                   type: string
  *                 example:
- *                   - cctv
+ *                   - swimming pool
  *                   - security
- *                 description: Send as repeated fields, a comma-separated string, or a JSON array string. Values must match the schema enum. Cannot be empty if sent.
+ *                   - parking
+ *                 description: Can be sent as repeated fields, comma-separated values, or a JSON array string. Cannot be empty if provided.
+ *
  *               gallery:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: New property images (up to 5). If sent, they replace the existing gallery.
+ *                 maxItems: 5
+ *                 description: New property images. If uploaded, they replace the existing gallery images and old images are removed from Cloudinary.
+ *
+ *               video:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 maxItems: 1
+ *                 description: Property walkthrough video. If uploaded, it replaces the existing property video and the old video is removed from Cloudinary.
+ *
  *     responses:
  *       200:
  *         description: Property updated successfully
@@ -477,82 +498,117 @@ router.get('/getLandLordKyc', authenticate, getLandLordKyc)
  *                 message:
  *                   type: string
  *                   example: Property updated successfully
+ *
  *                 data:
  *                   type: object
  *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab2c4d5a675b9e38dc41800
+ *
  *                     landLordId:
  *                       type: string
  *                       example: 6ab0f2ffa675b9e38dc41623
+ *
  *                     landLordKycId:
  *                       type: string
  *                       example: 6ab1a3c4a675b9e38dc41700
+ *
  *                     title:
  *                       type: string
- *                       example: Spacious 3 Bedroom Apartment
+ *                       example: Modern 4 Bedroom Duplex
+ *
  *                     propertyType:
  *                       type: string
- *                       example: apartment
+ *                       example: duplex
+ *
  *                     beds:
  *                       type: integer
- *                       example: 3
+ *                       example: 4
+ *
  *                     baths:
  *                       type: integer
- *                       example: 2
+ *                       example: 3
+ *
  *                     area:
- *                       type: string
- *                       example: 120 sqm
+ *                       type: number
+ *                       example: 350
+ *
  *                     description:
  *                       type: string
- *                       example: A bright apartment close to schools and shopping centres
+ *                       example: Beautiful duplex located in a secure neighbourhood
+ *
  *                     state:
  *                       type: string
  *                       example: Lagos
+ *
  *                     city:
  *                       type: string
- *                       example: Ikeja
+ *                       example: Lekki
+ *
  *                     streetAddress:
  *                       type: string
- *                       example: 45 Allen Avenue
+ *                       example: 12 Admiralty Way
+ *
  *                     rent:
  *                       type: number
- *                       example: 2500000
- *                     availability:
- *                       type: string
- *                       example: available
+ *                       example: 5000000
+ *
  *                     amenities:
  *                       type: array
  *                       items:
  *                         type: string
  *                       example:
- *                         - cctv
+ *                         - swimming pool
  *                         - security
+ *
  *                     gallery:
  *                       type: array
  *                       items:
  *                         type: string
  *                       example:
- *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img1.jpg
- *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/img2.jpg
+ *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/image1.jpg
+ *                         - https://res.cloudinary.com/demo/image/upload/Ridify/propertyUpload/image2.jpg
+ *
  *                     galleryPublicId:
  *                       type: array
  *                       items:
  *                         type: string
  *                       example:
- *                         - Ridify/propertyUpload/img1
- *                         - Ridify/propertyUpload/img2
+ *                         - Ridify/propertyUpload/image1
+ *                         - Ridify/propertyUpload/image2
+ *
+ *                     video:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - https://res.cloudinary.com/demo/video/upload/Ridify/propertyUpload/property-tour.mp4
+ *
+ *                     videoPublicId:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - Ridify/propertyUpload/property-tour
+ *
  *       400:
- *         description: Invalid property ID, invalid rent, or amenities sent empty
+ *         description: Invalid property ID, invalid rent value, or empty amenities list
+ *
  *       401:
- *         description: User not authenticated or token is missing or invalid
+ *         description: User is not authenticated or authentication token is missing/invalid
+ *
  *       403:
- *         description: You can only update your own property, or KYC not verified
+ *         description: User is not the property owner, user is not an admin, or KYC verification is incomplete
+ *
  *       404:
- *         description: Property not found
+ *         description: Property or user not found
+ *
  *       500:
  *         description: Internal server error
  */
 
-router.put('/updateProperty/:propertyId', authenticate,upload.fields([{ name: 'gallery', maxCount: 5 }]), updatePropertyUpload);
+router.put('/updateProperty/:propertyId', authenticate,upload.fields([{ name: 'gallery', maxCount: 5 }, { name: 'video', maxCount: 1 }]), updatePropertyUpload);
 
 /**
  * @swagger

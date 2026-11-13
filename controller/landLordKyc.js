@@ -110,7 +110,7 @@ const selfieUpload = await uploadGroup(selfieFiles);
             statusCode: 500
         })
     }
-}
+};
 
 exports.getLandLordKyc = async (req, res, next) => {
     try {
@@ -148,7 +148,7 @@ exports.getLandLordKyc = async (req, res, next) => {
             statusCode: 500
         })
     }
-}
+};
 
 const ALLOWED_ROLES = ['landlord', 'admin', 'agent', 'realtor'];
 
@@ -171,6 +171,25 @@ const parseList = (value) => {
 exports.propertyUpload = async (req, res, next) => {
     
     const galleryFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
+    const videoFiles = Array.isArray(req.files) ? [] : (req.files?.video || []);
+    const allFiles = [...galleryFiles, ...videoFiles];
+    const uploaded = []; 
+
+    const uploadFiles = async (files, resourceType = 'image') => {
+        const urls = [];
+        const publicIds = [];
+        for (const file of files) {
+            const result = await cloudinary.uploader.upload(file.path, {
+                folder: 'Ridify/propertyUpload',
+                resource_type: resourceType
+            });
+            urls.push(result.secure_url);
+            publicIds.push(result.public_id);
+            uploaded.push({ publicId: result.public_id, resourceType });
+            fs.unlinkSync(file.path);
+        }
+        return { urls, publicIds };
+    };
 
     try {
         const { id } = req.user;
@@ -235,21 +254,8 @@ exports.propertyUpload = async (req, res, next) => {
             });
         }
 
-        const uploadGroup = async (files) => {
-            const urls = [];
-            const publicIds = [];
-            for (const file of files) {
-                const result = await cloudinary.uploader.upload(file.path, {
-                    folder: 'Ridify/propertyUpload',
-                });
-                urls.push(result.secure_url);
-                publicIds.push(result.public_id);
-                fs.unlinkSync(file.path);
-            }
-            return { urls, publicIds };
-        };
-
-        const galleryUpload = await uploadGroup(galleryFiles);
+        const galleryUpload = await uploadFiles(galleryFiles, 'image');
+        const videoUpload = await uploadFiles(videoFiles, 'video');
 
         const property = await propertyModel.create({
             landLordId: id,
@@ -267,7 +273,9 @@ exports.propertyUpload = async (req, res, next) => {
             rent: rentValue,
             amenities,
             gallery: galleryUpload.urls,
-            galleryPublicId: galleryUpload.publicIds
+            galleryPublicId: galleryUpload.publicIds,
+            video: videoUpload.urls[0],
+            videoPublicId: videoUpload.publicIds[0]
         });
 
         res.status(201).json({
@@ -275,26 +283,35 @@ exports.propertyUpload = async (req, res, next) => {
             data: property
         });
     } catch (error) {
-        cleanup(galleryFiles);
+        cleanup(allFiles);
+        await Promise.allSettled(
+            uploaded.map((u) =>
+                cloudinary.uploader.destroy(u.publicId, { resource_type: u.resourceType })
+            )
+        );
         return next({ message: error.message, statusCode: 500 });
     }
 };
 
 exports.updatePropertyUpload = async (req, res, next) => {
-    const newFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
+    
+    const galleryFiles = Array.isArray(req.files) ? req.files : (req.files?.gallery || []);
+    const videoFiles = Array.isArray(req.files) ? [] : (req.files?.video || []);
+    const allFiles = [...galleryFiles, ...videoFiles];
+    const uploaded = [];
 
     try {
         const { id } = req.user;
 
         if (!id) {
-            cleanup(newFiles);
+            cleanup(allFiles);
             return next({ message: 'User not authenticated', statusCode: 401 });
         }
 
         const { propertyId } = req.params;
 
         if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
-            cleanup(newFiles);
+            cleanup(allFiles);
             return next({ message: 'A valid property ID is required', statusCode: 400 });
         }
 
@@ -302,12 +319,20 @@ exports.updatePropertyUpload = async (req, res, next) => {
         const admin = await userModel.findById(id);
 
         if (!property) {
-            cleanup(newFiles);
+            cleanup(allFiles);
             return next({ message: 'Property not found', statusCode: 404 });
         }
 
+        if (!admin) {
+            cleanup(allFiles);
+            return next({
+                message: "User not found",
+                statusCode: 404
+            });
+        }
+
         if (admin.role !== 'admin' && property.landLordId.toString() !== id) {
-            cleanup(newFiles);
+            cleanup(allFiles);
             return next({
                 message: 'Unauthorized: You can only update your own property',
                 statusCode: 403
@@ -316,7 +341,7 @@ exports.updatePropertyUpload = async (req, res, next) => {
 
         const kyc = await kycModel.findOne({ landLordId: id, kycVerified: true });
         if (!kyc) {
-            cleanup(newFiles);
+            cleanup(allFiles);
             return next({
                 message: 'KYC not verified. Please complete KYC verification before updating property.',
                 statusCode: 403
@@ -341,9 +366,9 @@ exports.updatePropertyUpload = async (req, res, next) => {
         if (rent !== undefined && rent !== '') {
             const rentValue = Number(String(rent).replace(/,/g, ''));
             if (!Number.isFinite(rentValue) || rentValue <= 0) {
-                cleanup(newFiles);
+                cleanup(allFiles);
                 return next({
-                    message: 'Rent must be a valid number, e.g. 2000000',
+                    message: 'Rent must be a valid number',
                     statusCode: 400
                 });
             }
@@ -353,28 +378,64 @@ exports.updatePropertyUpload = async (req, res, next) => {
         if (req.body.amenities !== undefined) {
             const amenities = parseList(req.body.amenities);
             if (amenities.length === 0) {
-                cleanup(newFiles);
+                cleanup(allFiles);
                 return next({ message: 'Amenities cannot be empty', statusCode: 400 });
             }
             propertyData.amenities = amenities;
         }
 
-        let oldPublicIds = [];
-        if (newFiles.length > 0) {
-            const urls = [];
-            const publicIds = [];
-            for (const file of newFiles) {
+        let oldGallery = [];
+        let oldVideos = [];
+
+        if (galleryFiles.length > 0) {
+            const imageUrls = [];
+            const imagePublicIds = [];
+
+            oldGallery = property.galleryPublicId || [];
+
+            for (const file of galleryFiles) {
+                const resourceType = "image";
                 const result = await cloudinary.uploader.upload(file.path, {
                     folder: 'Ridify/propertyUpload',
+                    resource_type: resourceType
                 });
-                urls.push(result.secure_url);
-                publicIds.push(result.public_id);
+                imageUrls.push(result.secure_url);
+
+                imagePublicIds.push(result.public_id);
+                uploaded.push({ publicId: result.public_id, resourceType });
                 fs.unlinkSync(file.path);
             }
-            propertyData.gallery = urls;
-            propertyData.galleryPublicId = publicIds;
-            oldPublicIds = property.galleryPublicId || [];
+            propertyData.gallery = imageUrls;
+            propertyData.galleryPublicId = imagePublicIds;
         }
+
+        if (videoFiles.length > 0) {
+        const videoUrls = [];
+        const videoPublicIds = [];
+        oldVideos = property.videoPublicId || [];
+
+        for (const file of videoFiles) {
+            const resourceType = "video";
+
+            const result = await cloudinary.uploader.upload(file.path, {
+                folder: "Ridify/propertyUpload",
+                resource_type: resourceType
+            });
+
+            videoUrls.push(result.secure_url);
+            videoPublicIds.push(result.public_id);
+
+            uploaded.push({
+                    publicId: result.public_id,
+                    resourceType
+                });
+
+            fs.unlinkSync(file.path);
+        }
+
+        propertyData.video = videoUrls;
+        propertyData.videoPublicId = videoPublicIds;
+    }
 
         const updatedProperty = await propertyModel.findByIdAndUpdate(
             propertyId,
@@ -383,8 +444,12 @@ exports.updatePropertyUpload = async (req, res, next) => {
         );
 
         
-        for (const pid of oldPublicIds) {
-            try { await cloudinary.uploader.destroy(pid); } catch (_) {}
+        for (const id of oldGallery) {
+            try { await cloudinary.uploader.destroy(id, { resource_type: "image" }); } catch (error) {}
+        }
+
+        for (const id of oldVideos) {
+            try { await cloudinary.uploader.destroy(id, { resource_type: "video" }); } catch (error) {}
         }
 
         res.status(200).json({
@@ -392,7 +457,7 @@ exports.updatePropertyUpload = async (req, res, next) => {
             data: updatedProperty
         });
     } catch (error) {
-        cleanup(newFiles);
+        cleanup(allFiles);
         return next({ message: error.message, statusCode: 500 });
     }
 };
