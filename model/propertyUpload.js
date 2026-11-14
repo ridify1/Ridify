@@ -127,7 +127,7 @@ const propertyUploadSchema = new mongoose.Schema({
     uniqueViews: { type: Number, default: 0 },
 }, {timestamps: true})
 
-const PropertyUpload = mongoose.model('PropertyUpload', propertyUploadSchema)
+const PropertyUpload = mongoose.model('propertyUpload', propertyUploadSchema)
 
 module.exports = PropertyUpload
 module.exports.AMENITIES = AMENITIES

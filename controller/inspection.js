@@ -142,9 +142,8 @@ exports.getAgentInspection = async (req, res, next) => {
         }
 
         return res.status(200).json({
-            message: 'Inspections retrieved successfully',
-            count: inspections.length,
-            data: inspections
+            message: 'Inspection retrieved successfully',
+            data: inspection
         });
     }catch(error){
         return next({
