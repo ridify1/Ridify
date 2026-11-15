@@ -672,7 +672,8 @@ exports.changeStatus = async (req, res, next) => {
         
         if (!propertyId || !mongoose.isValidObjectId(propertyId)) {
             return next({
-                message: 'Invalid Property Id'
+                message: 'Invalid Property Id',
+                statusCode: 401
             })
         }
 

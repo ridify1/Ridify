@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty, getAllJobAgencyKyc, getAgencyKycById, updateAgencyKycStatus, deleteAgencyKyc, getVerifiedAgencyKyc, getUnverifiedAgencyKyc, getAllHrKyc, getHrKycById, updateHrKycStatus, deleteHrKyc, getVerifiedHrKyc, getUnverifiedHrKyc, getAllArtisanKyc, getArtisanKycById, updateArtisanKycStatus, deleteArtisanKyc, getVerifiedArtisanKyc, getUnverifiedArtisanKyc, getLandLordKycById, getAllInspections, getAllInspectionsByLandlord } = require('../controller/admin')
+const { login, getAllLandLordKyc, getKycById, updateKycStatus, deleteKyc, getVerifiedKyc, getUnverifiedKyc, deleteOneUser, getAllUsers, getAllPropertyUpload, getPropertiesByLandLord, deleteProperty, getAllJobAgencyKyc, getAgencyKycById, updateAgencyKycStatus, deleteAgencyKyc, getVerifiedAgencyKyc, getUnverifiedAgencyKyc, getAllHrKyc, getHrKycById, updateHrKycStatus, deleteHrKyc, getVerifiedHrKyc, getUnverifiedHrKyc, getAllArtisanKyc, getArtisanKycById, updateArtisanKycStatus, deleteArtisanKyc, getVerifiedArtisanKyc, getUnverifiedArtisanKyc, getLandLordKycById, getAllInspections, getAllInspectionsByLandlord, getOneInspection, deleteInspection, getAllJobs, getJob, getAllJobsByAgent, changeJobStatus, deleteJob, getAllJobsAdmin, getJobAdmin, deleteJobAdmin } = require('../controller/admin')
 const { authenticate } = require('../middleware/auth')
 const { loginValidator } = require('../middleware/validator')
 
@@ -2750,5 +2750,583 @@ router.get('/allInspections', authenticate, getAllInspections)
  */
 
 router.get('/getInspectionsByAgent/:landLordId', authenticate, getAllInspectionsByLandlord)
+
+/**
+ * @swagger
+ * /api/v1/admin/oneInspection/{inspectionId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get a single inspection request
+ *     description: Returns one inspection request by its id, with the property and requester details attached. Only admins can use this endpoint, and they can view any inspection. If the inspection does not exist, a 404 is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: inspectionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab4e6f7a675b9e38dc41a00
+ *         description: The id of the inspection request to retrieve
+ *     responses:
+ *       200:
+ *         description: Inspection retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Inspection retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab4e6f7a675b9e38dc41a00
+ *                     landLordId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     propertyId:
+ *                       type: object
+ *                       description: The property being inspected (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab2c4d5a675b9e38dc41800
+ *                         title:
+ *                           type: string
+ *                           example: Spacious 3 Bedroom Apartment
+ *                         description:
+ *                           type: string
+ *                           example: A bright apartment close to schools and shopping centres
+ *                         state:
+ *                           type: string
+ *                           example: Lagos
+ *                         city:
+ *                           type: string
+ *                           example: Ikeja
+ *                         streetAddress:
+ *                           type: string
+ *                           example: 45 Allen Avenue
+ *                         rent:
+ *                           type: number
+ *                           example: 2000000
+ *                         status:
+ *                           type: string
+ *                           example: available
+ *                         category:
+ *                           type: string
+ *                           example: apartment
+ *                     inspectorId:
+ *                       type: object
+ *                       description: The user who requested the inspection (populated)
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                           example: 6ab5f7a8a675b9e38dc41b00
+ *                         fullName:
+ *                           type: string
+ *                           example: John Okafor
+ *                         email:
+ *                           type: string
+ *                           example: john.okafor@example.com
+ *                         phoneNumber:
+ *                           type: string
+ *                           example: "8012345678"
+ *                     preferredDate:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-11-20T10:00:00.000Z
+ *                     preferredTime:
+ *                       type: string
+ *                       example: "10:00 AM"
+ *                     message:
+ *                       type: string
+ *                       example: I would like to see the apartment on a weekday morning
+ *                     status:
+ *                       type: string
+ *                       example: pending
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-10-20T09:30:00.000Z
+ *       400:
+ *         description: Invalid inspection ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied, admins only
+ *       404:
+ *         description: Inspection not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/oneInspection/:inspectionId', authenticate, getOneInspection)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteInspection/{inspectionId}:
+ *   delete:
+ *     tags:
+ *       - Admin
+ *     summary: Delete an inspection request
+ *     description: Permanently deletes an inspection request by its id. Only admins can use this endpoint, and they can delete any inspection. If the inspection does not exist, a 404 is returned. The deleted inspection's id, property, landlord, requester and last status are returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: inspectionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab4e6f7a675b9e38dc41a00
+ *         description: The id of the inspection request to delete
+ *     responses:
+ *       200:
+ *         description: Inspection deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Inspection deleted successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab4e6f7a675b9e38dc41a00
+ *                     propertyId:
+ *                       type: string
+ *                       example: 6ab2c4d5a675b9e38dc41800
+ *                     landLordId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     inspectorId:
+ *                       type: string
+ *                       example: 6ab5f7a8a675b9e38dc41b00
+ *                     status:
+ *                       type: string
+ *                       example: pending
+ *       400:
+ *         description: Invalid inspection ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied, admins only
+ *       404:
+ *         description: Inspection not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteInspection/:inspectionId', authenticate, deleteInspection)
+
+/**
+ * @swagger
+ * /api/v1/admin/allJobs:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all jobs on the platform
+ *     description: Returns a paginated list of every job posting from every poster, newest first. Only admins can use this endpoint. If there are no jobs, an empty list is returned with a 200 status.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of jobs per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Jobs retrieved successfully. An empty list is returned when there are no jobs.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Jobs retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 20
+ *                   description: Number of jobs on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 57
+ *                   description: Total number of jobs on the platform
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 3
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab6a8b9a675b9e38dc41c00
+ *                       posterId:
+ *                         type: string
+ *                         example: 6ab0f2ffa675b9e38dc41623
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Senior Electrician
+ *                       aboutJob:
+ *                         type: string
+ *                         example: We are hiring an electrician for residential and commercial projects in Lagos
+ *                       description:
+ *                         type: string
+ *                         example: Install, maintain and repair electrical systems, read blueprints, and follow safety standards
+ *                       qualification:
+ *                         type: string
+ *                         example: National Diploma in Electrical Engineering or a trade certificate
+ *                       experience:
+ *                         type: string
+ *                         example: 3 to 5 years
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-15T09:30:00.000Z
+ *       401:
+ *         description: Invalid user ID, or token is missing, invalid or expired
+ *       403:
+ *         description: Access denied, admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/allJobs', authenticate, getAllJobsAdmin)
+
+/**
+ * @swagger
+ * /api/v1/admin/oneJob/{jobId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get a single job
+ *     description: Returns one job posting by its id. Only admins can use this endpoint, and they can view any job regardless of who posted it. If the job does not exist, a 404 is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab6a8b9a675b9e38dc41c00
+ *         description: The id of the job to retrieve
+ *     responses:
+ *       200:
+ *         description: Job retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab6a8b9a675b9e38dc41c00
+ *                     posterId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     jobTitle:
+ *                       type: string
+ *                       example: Senior Electrician
+ *                     aboutJob:
+ *                       type: string
+ *                       example: We are hiring an electrician for residential and commercial projects in Lagos
+ *                     description:
+ *                       type: string
+ *                       example: Install, maintain and repair electrical systems, read blueprints, and follow safety standards
+ *                     qualification:
+ *                       type: string
+ *                       example: National Diploma in Electrical Engineering or a trade certificate
+ *                     experience:
+ *                       type: string
+ *                       example: 3 to 5 years
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-11-15T09:30:00.000Z
+ *       400:
+ *         description: Invalid job ID
+ *       401:
+ *         description: Invalid user ID, or token is missing, invalid or expired
+ *       403:
+ *         description: Access denied, admins only
+ *       404:
+ *         description: Job not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/oneJob/:jobId', authenticate, getJobAdmin)
+
+/**
+ * @swagger
+ * /api/v1/admin/getByAgent/{posterId}:
+ *   get:
+ *     tags:
+ *       - Admin
+ *     summary: Get all jobs posted by a specific poster
+ *     description: Returns a paginated list of the jobs posted by the given user (an employer, HR or job agent), newest first. Only admins can use this endpoint, and they can view the jobs of any poster. If the poster has no jobs, an empty list is returned with a 200 status.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: posterId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab0f2ffa675b9e38dc41623
+ *         description: The user id of the poster whose jobs should be returned
+ *       - in: query
+ *         name: page
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *           example: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         required: false
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 50
+ *           default: 20
+ *           example: 20
+ *         description: Number of jobs per page (maximum 50)
+ *     responses:
+ *       200:
+ *         description: Jobs retrieved successfully. An empty list is returned when the poster has no jobs.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Jobs retrieved successfully
+ *                 count:
+ *                   type: integer
+ *                   example: 5
+ *                   description: Number of jobs on this page
+ *                 total:
+ *                   type: integer
+ *                   example: 5
+ *                   description: Total number of jobs posted by this poster
+ *                 page:
+ *                   type: integer
+ *                   example: 1
+ *                 totalPages:
+ *                   type: integer
+ *                   example: 1
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 6ab6a8b9a675b9e38dc41c00
+ *                       posterId:
+ *                         type: string
+ *                         example: 6ab0f2ffa675b9e38dc41623
+ *                       jobTitle:
+ *                         type: string
+ *                         example: Senior Electrician
+ *                       aboutJob:
+ *                         type: string
+ *                         example: We are hiring an electrician for residential and commercial projects in Lagos
+ *                       description:
+ *                         type: string
+ *                         example: Install, maintain and repair electrical systems, read blueprints, and follow safety standards
+ *                       qualification:
+ *                         type: string
+ *                         example: National Diploma in Electrical Engineering or a trade certificate
+ *                       experience:
+ *                         type: string
+ *                         example: 3 to 5 years
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-15T09:30:00.000Z
+ *       400:
+ *         description: Invalid poster ID
+ *       401:
+ *         description: Invalid user ID, or token is missing, invalid or expired
+ *       403:
+ *         description: Access denied, admins only
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/getByAgent/:posterId', authenticate, getAllJobsByAgent)
+
+/**
+ * @swagger
+ * /api/v1/admin/changeJobStatus/{jobId}:
+ *   patch:
+ *     tags:
+ *       - Admin
+ *     summary: Change the status of any job
+ *     description: Updates the status of a job posting. Only admins can use this endpoint, and they can change the status of any job regardless of who posted it. If the job does not exist, a 404 is returned. The status is not case-sensitive.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab6a8b9a675b9e38dc41c00
+ *         description: The id of the job to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [open, closed, paused]
+ *                 example: closed
+ *                 description: The new status of the job
+ *     responses:
+ *       200:
+ *         description: Status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Status updated successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab6a8b9a675b9e38dc41c00
+ *                     posterId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     jobTitle:
+ *                       type: string
+ *                       example: Senior Electrician
+ *                     status:
+ *                       type: string
+ *                       example: closed
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-11-15T09:30:00.000Z
+ *       400:
+ *         description: Invalid job ID, or status is missing or not one of the allowed values
+ *       401:
+ *         description: Invalid user ID, or token is missing, invalid or expired
+ *       403:
+ *         description: Access denied, admins only
+ *       404:
+ *         description: Job not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.patch('/changeJobStatus/:jobId', authenticate, changeJobStatus)
+
+/**
+ * @swagger
+ * /api/v1/admin/deleteJob/{jobId}:
+ *   delete:
+ *     tags:
+ *       - Admin
+ *     summary: Delete any job
+ *     description: Permanently deletes a job posting by its id. Only admins can use this endpoint, and they can delete any job regardless of who posted it. If the job does not exist, a 404 is returned. The deleted job's id, poster id and title are returned.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab6a8b9a675b9e38dc41c00
+ *         description: The id of the job to delete
+ *     responses:
+ *       200:
+ *         description: Job deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Job deleted successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab6a8b9a675b9e38dc41c00
+ *                     posterId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     jobTitle:
+ *                       type: string
+ *                       example: Senior Electrician
+ *       400:
+ *         description: Invalid job ID
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       403:
+ *         description: Access denied, admins only
+ *       404:
+ *         description: Job not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.delete('/deleteJob/:jobId', authenticate, deleteJobAdmin)
 
 module.exports = router;
