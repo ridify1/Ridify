@@ -13,7 +13,6 @@ const {
   changePasswordSuccessfulTemplate,
 } = require("../utils/emailTemplate");
 const sendMail = require("../utils/nodemailer");
-const { REFRESH_TTL_SECONDS } = require('../config/constants');
 const otpGenerator = require("otp-generator");
 const jwt = require("jsonwebtoken");
 const redisClient = require("../config/redis");
