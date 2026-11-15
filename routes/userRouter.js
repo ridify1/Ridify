@@ -3,7 +3,8 @@ const { authenticate } = require('../middleware/auth');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
 const { dashboard, getPropertiesByCategory, getArtisansByCategory, getPropertiesByLocation, getArtisansByLocation, getPropertiesByLocationAndCategory } = require('../controller/userDashboard');
-const express = require('express')
+const express = require('express');
+const passport = require('passport');
 const router = require('express').Router();
 
 /**
@@ -12,6 +13,81 @@ const router = require('express').Router();
  *   name: User
  *   description: User management and authentication
  */
+
+/**
+ * @swagger
+ * /api/v1/user/google:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Start Google sign-in
+ *     description: Redirects the user to Google's consent screen to sign in with their Google account. After they approve, Google sends them to the callback route. New users get an account created automatically, and existing users are signed in. This route must be opened in a browser, because Swagger UI cannot follow the redirect to Google.
+ *     responses:
+ *       302:
+ *         description: Redirects to the Google sign-in and consent screen
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/google', passport.authenticate('google-user', {
+    scope: ['profile', 'email'],
+    session: false
+}));
+
+/**
+ * @swagger
+ * /api/v1/user/google/callback:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Google sign-in callback
+ *     description: Called by Google after the user approves sign-in. Verifies the Google account, creates a new user if none exists (sending a welcome email), and returns an access token. A refresh token is stored in an httpOnly cookie. Google accounts without a verified email are rejected. This route is called by Google with a code parameter and is not meant to be called directly.
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 4/0AfJohXn8example
+ *         description: The authorization code that Google sends to this route
+ *     responses:
+ *       200:
+ *         description: Login successful. The refresh token is set in an httpOnly cookie named refreshToken.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Login Successful
+ *                 token:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *       302:
+ *         description: Redirects to /api/v1/user/loginfailed if Google sign-in fails or the Google email is not verified
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get('/google/callback',
+    passport.authenticate('google-user', {
+        session: false,
+        failureRedirect: '/api/v1/user/loginfailed'
+    }),
+    (req,res) => {
+        const { accessToken, refreshToken } = req.user;
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.Node_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: REFRESH_TTL_SECONDS * 1000
+        });
+
+        res.status(200).json({ message: 'Login Successful', token: accessToken})
+    }
+)
 
 /**
  * @swagger
