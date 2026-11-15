@@ -44,7 +44,7 @@ const serviceSchema = new mongoose.Schema({
     },
     rateType: {
         type: String,
-        enum: ['hourly', 'daily', 'weekly', 'monthly', 'job'],
+        enum: ['hourly', 'daily', 'weekly', 'monthly', 'perJob', 'fixed'],
         required: true,
         trim: true
     },
