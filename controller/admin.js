@@ -5,6 +5,7 @@
  const hrKycModel = require('../model/employerKyc')
  const artisanKycModel = require('../model/artisanKyc')
  const inspectionModel = require('../model/inspection')
+ const postJobModel = require('../model/postJob')
  const bcrypt = require('bcrypt');
  const jwt = require('jsonwebtoken');
  const mongoose = require('mongoose');
@@ -1531,6 +1532,45 @@ exports.getAllInspections = async (req, res, next) => {
     }
 }
 
+exports.getOneInspection = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { inspectionId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(inspectionId)) {
+            return next({ message: 'Invalid inspection ID', statusCode: 400 });
+        }
+
+        const inspection = await inspectionModel
+            .findById(inspectionId)
+            .populate('propertyId', 'title description state city streetAddress rent status category')
+            .populate('inspectorId', 'fullName email phoneNumber')
+            .lean();
+
+        if (!inspection) {
+            return next({ message: 'Inspection not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Inspection retrieved successfully',
+            data: inspection
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
 exports.getAllInspectionsByLandlord = async (req, res, next) => {
     try {
         const { id } = req.user;
@@ -1574,4 +1614,261 @@ exports.getAllInspectionsByLandlord = async (req, res, next) => {
             statusCode: 500
         })
     }
-}
+};
+
+exports.deleteInspection = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { inspectionId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(inspectionId)) {
+            return next({ message: 'Invalid inspection ID', statusCode: 400 });
+        }
+
+        const deletedInspection = await inspectionModel
+            .findByIdAndDelete(inspectionId)
+            .lean();
+
+        if (!deletedInspection) {
+            return next({ message: 'Inspection not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Inspection deleted successfully',
+            data: {
+                _id: deletedInspection._id,
+                propertyId: deletedInspection.propertyId,
+                landLordId: deletedInspection.landLordId,
+                inspectorId: deletedInspection.inspectorId,
+                status: deletedInspection.status
+            }
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getAllJobsAdmin = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Invalid Id', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const skip = (page - 1) * limit;
+
+        const [jobs, total] = await Promise.all([
+            postJobModel.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            postJobModel.countDocuments()
+        ]);
+
+        return res.status(200).json({
+            message: jobs.length === 0
+                ? 'No jobs to display'
+                : 'Jobs retrieved successfully',
+            count: jobs.length,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+            data: jobs
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getJobAdmin = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Invalid Id', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { jobId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return next({ message: 'Invalid job ID', statusCode: 400 });
+        }
+
+        const job = await postJobModel.findById(jobId).lean();
+
+        if (!job) {
+            return next({ message: 'Job not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Job retrieved successfully',
+            data: job
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.getAllJobsByAgent = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Invalid Id', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { posterId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(posterId)) {
+            return next({ message: 'Invalid poster ID', statusCode: 400 });
+        }
+
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const skip = (page - 1) * limit;
+
+        const [jobs, total] = await Promise.all([
+            postJobModel.find({ posterId }).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            postJobModel.countDocuments({ posterId })
+        ]);
+
+        return res.status(200).json({
+            message: jobs.length === 0
+                ? 'No jobs to display'
+                : 'Jobs retrieved successfully',
+            count: jobs.length,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+            data: jobs
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+const JOB_STATUSES = ['open', 'closed', 'paused'];
+
+exports.changeJobStatus = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Invalid User Id', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { jobId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return next({ message: 'Invalid Job Id', statusCode: 400 });
+        }
+
+        const statusInput = String(req.body.status || '').trim();
+
+        if (!statusInput) {
+            return next({ message: 'Status is required', statusCode: 400 });
+        }
+
+        const status = JOB_STATUSES.find(
+            (s) => s.toLowerCase() === statusInput.toLowerCase()
+        );
+
+        if (!status) {
+            return next({
+                message: `Status must be one of: ${JOB_STATUSES.join(', ')}`,
+                statusCode: 400
+            });
+        }
+
+        const job = await postJobModel.findByIdAndUpdate(
+            jobId,
+            { status },
+            { new: true, runValidators: true }
+        ).lean();
+
+        if (!job) {
+            return next({ message: 'Job not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Status updated successfully',
+            data: job
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
+
+exports.deleteJobAdmin = async (req, res, next) => {
+    try {
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated', statusCode: 401 });
+        }
+
+        const admin = await userModel.findById(id).select('role').lean();
+
+        if (!admin || admin.role !== 'admin') {
+            return next({ message: 'Access denied: Admins only', statusCode: 403 });
+        }
+
+        const { jobId } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(jobId)) {
+            return next({ message: 'Invalid job ID', statusCode: 400 });
+        }
+
+        const deletedJob = await postJobModel.findByIdAndDelete(jobId).lean();
+
+        if (!deletedJob) {
+            return next({ message: 'Job not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'Job deleted successfully',
+            data: {
+                _id: deletedJob._id,
+                posterId: deletedJob.posterId,
+                jobTitle: deletedJob.jobTitle
+            }
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
