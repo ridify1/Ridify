@@ -7,6 +7,7 @@ const bcrypt = require('bcrypt');
 const { sendBrevoEmail } = require("../utils/brevo");
 const {
   signUpTemplate,
+  googlechangePasswordTemplate,
   resetPasswordTemplate,
   resetPasswordSuccessfulTemplate,
   changePasswordSuccessfulTemplate,
@@ -17,6 +18,8 @@ const jwt = require("jsonwebtoken");
 const redisClient = require("../config/redis");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
+const passport = require("passport");
+const crypto = require("crypto")
 const {
     generateAccessToken,
     generateRefreshToken,
@@ -28,6 +31,83 @@ const generateOtp = () => otpGenerator.generate(6, {
       upperCaseAlphabets: false,
       lowerCaseAlphabets: false,
       specialChars: false
+});
+
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+console.log('redirectUrl:', process.env.userCallback)
+passport.use(
+  "google-user",
+  new GoogleStrategy(
+    {
+      clientID: process.env.clientId,
+      clientSecret: process.env.clientSecret,
+      callbackURL: process.env.userCallback,
+      scope: ["profile", "email"],
+      passReqToCallback: true,
+    },
+    async function (request, googleAccessToken, googleRefreshToken, profile, done) {
+      try{
+        const email = profile._json.email?.toLowerCase();
+
+        if (!email || !profile._json.email_verified) {
+            return done(null, false);
+        }
+
+        let user = await userModel.findOne({ email });
+        let isNewUser = false;
+
+        if (!user) {
+            user= await userModel.create({
+                fullName: profile.displayName,
+                email,
+                isVerified: true,
+                password: crypto.randomBytes(32).toString("hex")
+            })
+            isNewUser = true;
+        } else if (!user.isVerified) {
+            user.isVerified = true;
+            await user.save();
+        }
+
+        if (isNewUser) {
+            try {
+                const emailOptions = {
+                    email: mother.email,
+                    subject: "Welcome to Ridify",
+                    html: googlechangePasswordTemplate(user.fullName, password),
+                    };
+
+                if (process.env.NODE_ENV === "production") {
+                    await sendBrevoEmail(emailOptions);
+                    } else {
+                    await sendMail(emailOptions);
+                    }
+            }catch (mailError){
+                console.error("Welcome email failed:", mailError.message);
+            }
+        }
+
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
+
+        await redisClient.set(`refresh_${user._id}`,refreshToken, {
+            EX: REFRESH_TTL_SECONDS,
+        });
+
+        return done(null, { accessToken, refreshToken, });
+      }catch(error){
+        return done(error)
+      }
+    },
+  ),
+);
+
+passport.serializeUser((token, done) => {
+  return done(null, token);
+});
+
+passport.deserializeUser((token, done) => {
+  return done(null, token);
 });
 
 exports.createUser = async (req, res, next) => {
