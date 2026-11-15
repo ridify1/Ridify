@@ -482,7 +482,6 @@ exports.refresh = async (req, res, next) => {
             return res.status(401).json({ message: 'User not found' });
         }
 
-        // Rotation: issue a NEW refresh token and replace the old one
         const newAccessToken = generateAccessToken(user);
         const newRefreshToken = generateRefreshToken(user);
 

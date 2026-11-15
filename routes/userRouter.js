@@ -1,5 +1,6 @@
 const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout } = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
+const { REFRESH_TTL_SECONDS } = require('../utils/token');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
 const { dashboard, getPropertiesByCategory, getArtisansByCategory, getPropertiesByLocation, getArtisansByLocation, getPropertiesByLocationAndCategory } = require('../controller/userDashboard');
