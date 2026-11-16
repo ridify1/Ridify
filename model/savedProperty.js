@@ -8,7 +8,7 @@ const savedPropertySchema = new mongoose.Schema({
     },
     property: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Property",
+      ref: "propertyUploads",
       required: true,
     },
 }, {timestamps: true})
