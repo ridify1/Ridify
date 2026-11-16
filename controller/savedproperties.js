@@ -35,7 +35,7 @@ exports.saveProperty = async (req, res, next) => {
             property: propertyId,
         });
 
-        if (alreadySaved.property === propertyId) {
+        if (alreadySaved) {
             return next({
                 statusCode: 400,
                 message: "Property already saved",
