@@ -30,7 +30,7 @@ exports.saveProperty = async (req, res, next) => {
             });
         }
 
-        const alreadySaved = await savedPropertyModel.findOne({
+        const alreadySaved = await savedModel.findOne({
             user: id,
             property: propertyId,
         });
@@ -42,7 +42,7 @@ exports.saveProperty = async (req, res, next) => {
             });
         }
 
-        const saved = await savedPropertyModel.create({
+        const saved = await savedModel.create({
             user: id,
             property: propertyId,
         });
@@ -110,7 +110,7 @@ exports.unsaveProperty = async (req, res, next) => {
     return next({ message: 'Invalid property ID', statusCode: 400 });
 } 
 
-        const saved = await savedPropertyModel.findOneAndDelete({
+        const saved = await savedModel.findOneAndDelete({
             user: id,
             property: propertyId,
         });
@@ -150,7 +150,7 @@ exports.getSavedProperty = async (req, res, next) => {
             return next({ message: 'Input a valid property Id', statusCode: 400 });
         }
 
-        const savedProperties = await savedPropertyModel
+        const savedProperties = await savedModel
             .find({ property: propertyId })
             .populate("property")
             .sort({ createdAt: -1 });
