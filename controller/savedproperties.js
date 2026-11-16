@@ -150,18 +150,17 @@ exports.getSavedProperty = async (req, res, next) => {
             return next({ message: 'Input a valid property Id', statusCode: 400 });
         }
 
-        const savedProperties = await savedModel
-            .find({ property: propertyId })
-            .populate("property")
-            .sort({ createdAt: -1 });
+        const saved = await savedModel.findOne({ user: id, property: propertyId })
+            .populate({path: 'property',})
+            .lean();
 
-        if (!saved || !saved.property) {
+        if (!saved) {
             return next({ message: 'Saved property not found', statusCode: 404 });
         }
 
         res.json({
             success: true,
-            data: savedProperties,
+            data: saved,
         });
 
     } catch (error) {
