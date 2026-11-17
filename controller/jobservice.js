@@ -4,26 +4,27 @@ const mongoose = require('mongoose')
 const serviceModel = require('../model/service')
 const kycModel = require('../model/artisanKyc')
 const serviceApplyModel = require('../model/serviceApply')
+const fs = require('fs');
 
-const ALLOWED_ROLES = ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Cleaning', 'Curlinary', 'Security', 'admin'];
+const ALLOWED_CATEGORIES = [
+    'Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter',
+    'Cleaning', 'Curlinary', 'Security'
+]; 
 
-const cleanup = (files = []) => {
-    files.forEach((f) => {
-        try { fs.unlinkSync(f.path); } catch (_) {}
-    });
-};
+const RATE_TYPES = ['hourly', 'daily', 'weekly', 'monthly', 'perJob', 'fixed'];
 
 const parseList = (value) => {
     if (!value) return [];
     if (Array.isArray(value)) return value;
     const trimmed = String(value).trim();
     if (trimmed.startsWith('[')) {
-        try { return JSON.parse(trimmed); } catch (_) {}
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
     }
-    return trimmed.split(',').map((s) => s.trim()).filter(Boolean);
+    return trimmed.split(',');
 };
-
-const RATE_TYPES = ['hourly', 'daily', 'weekly', 'monthly', 'perJob','fixed']; 
 
 const removeTempFiles = (files) => {
     for (const file of files) {
@@ -37,6 +38,24 @@ const removeTempFiles = (files) => {
 
 exports.myServices = async (req, res, next) => {
     const photoFiles = req.files?.photos || [];
+    const videoFiles = req.files?.video || [];
+    const allFiles = [...photoFiles, ...videoFiles];
+    const uploaded = []; // for rollback if saving fails
+
+    const uploadFiles = async (files, resourceType) => {
+        const urls = [];
+        const publicIds = [];
+        for (const file of files) {
+            const result = await cloudinary.uploader.upload(file.path, {
+                folder: 'Ridify/myService',
+                resource_type: resourceType
+            });
+            urls.push(result.secure_url);
+            publicIds.push(result.public_id);
+            uploaded.push({ publicId: result.public_id, resourceType });
+        }
+        return { urls, publicIds };
+    };
 
     try {
         const { id } = req.user;
@@ -50,15 +69,14 @@ exports.myServices = async (req, res, next) => {
         const description = String(req.body?.description || '').trim();
         const area = String(req.body?.area || '').trim();
         const cityState = String(req.body?.cityState || '').trim();
-        const rateType = String(req.body?.rateType || '').trim().toLowerCase();
+        const rateTypeInput = String(req.body?.rateType || '').trim().toLowerCase();
         const rate = Number(req.body?.rate);
 
-        const rawIncluded = req.body?.whatsIncluded;
-        const whatsIncluded = (Array.isArray(rawIncluded) ? rawIncluded : String(rawIncluded || '').split(','))
+        const whatsIncluded = parseList(req.body?.whatsIncluded)
             .map((item) => String(item).trim())
             .filter(Boolean);
 
-        if (!service || !engagement || !description || !area || !cityState || !rateType || !whatsIncluded.length) {
+        if (!service || !engagement || !description || !area || !cityState || !rateTypeInput || !whatsIncluded.length) {
             return next({ message: 'All fields are required', statusCode: 400 });
         }
 
@@ -66,7 +84,9 @@ exports.myServices = async (req, res, next) => {
             return next({ message: 'Rate must be a number greater than 0', statusCode: 400 });
         }
 
-        if (!RATE_TYPES.includes(rateType)) {
+        const rateType = RATE_TYPES.find((t) => t.toLowerCase() === rateTypeInput);
+
+        if (!rateType) {
             return next({ message: `Rate type must be one of: ${RATE_TYPES.join(', ')}`, statusCode: 400 });
         }
 
@@ -80,6 +100,10 @@ exports.myServices = async (req, res, next) => {
             return next({ message: 'User not found', statusCode: 404 });
         }
 
+        if (!ALLOWED_CATEGORIES.includes(user.categoryForJob)) {
+            return next({ message: 'Only artisans can upload a service', statusCode: 403 });
+        }
+
         const kyc = await kycModel.findOne({ artisanId: id, kycVerified: true }).select('_id').lean();
 
         if (!kyc) {
@@ -89,16 +113,8 @@ exports.myServices = async (req, res, next) => {
             });
         }
 
-        const photos = [];
-        const photoPublicIds = [];
-
-        for (const file of photoFiles) {
-            const result = await cloudinary.uploader.upload(file.path, {
-                folder: 'Ridify/serviceUpload'
-            });
-            photos.push(result.secure_url);
-            photoPublicIds.push(result.public_id);
-        }
+        const photoUpload = await uploadFiles(photoFiles, 'image');
+        const videoUpload = await uploadFiles(videoFiles, 'video');
 
         const created = await serviceModel.create({
             artisanId: id,
@@ -112,8 +128,10 @@ exports.myServices = async (req, res, next) => {
             rate,
             rateType,
             whatsIncluded,
-            photos,
-            photoPublicIds
+            photos: photoUpload.urls,
+            photoPublicIds: photoUpload.publicIds,
+            video: videoUpload.urls[0],
+            videoPublicId: videoUpload.publicIds[0]
         });
 
         return res.status(201).json({
@@ -131,13 +149,19 @@ exports.myServices = async (req, res, next) => {
                 rateType: created.rateType,
                 whatsIncluded: created.whatsIncluded,
                 photos: created.photos,
+                video: created.video,
                 createdAt: created.createdAt
             }
         });
     } catch (error) {
+        await Promise.all(
+            uploaded.map((u) =>
+                cloudinary.uploader.destroy(u.publicId, { resource_type: u.resourceType }).catch(() => {})
+            )
+        );
         return next({ message: error.message, statusCode: 500 });
     } finally {
-        removeTempFiles(photoFiles);
+        removeTempFiles(allFiles);
     }
 };
 
