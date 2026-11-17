@@ -63,11 +63,9 @@ const serviceSchema = new mongoose.Schema({
         required: true,
         get () {
           const value = this.getDataValue('photos');
-          // Parse the stored JSON string back into an array
           return value ? JSON.parse(value) : [];
         },
         set(val) {
-          // Stringify the value into a JSON string before saving
           this.setDataValue('photos', JSON.stringify(val));
         }
       }],
@@ -76,14 +74,20 @@ const serviceSchema = new mongoose.Schema({
         required: true,
         get () {
           const value = this.getDataValue('photosPublicId');
-          // Parse the stored JSON string back into an array
           return value ? JSON.parse(value) : [];
         },
         set(val) {
-          // Stringify the value into a JSON string before saving
           this.setDataValue('photosPublicId', JSON.stringify(val));
         }
     },
+    video: {
+        type: [String],
+        default: []
+      },
+    videoPublicId: {
+        type: [String],
+        default: []
+    }
 }, { timestamps: true });
 
 const service = mongoose.model('Services', serviceSchema);

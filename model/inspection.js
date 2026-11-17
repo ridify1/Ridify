@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const inspectionSchema = new mongoose.Schema({
     propertyId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'propertyUpload',
+        ref: 'propertyUploads',
         required: true,
     },
     landLordId: {
