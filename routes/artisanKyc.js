@@ -233,7 +233,7 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *     tags:
  *       - Artisan Service
  *     summary: Upload a service
- *     description: Creates a service listing for the authenticated artisan. The artisan must have a verified KYC before uploading a service. At least one photo of their work is required, and up to five can be uploaded to Cloudinary. The artisan is taken from the access token, not from the request body.
+ *     description: Creates a service listing for the authenticated artisan. The user must be an artisan with a verified KYC before uploading a service. At least one photo of their work is required, and up to five photos and one optional video can be uploaded to Cloudinary. The artisan is taken from the access token, not from the request body.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -279,13 +279,13 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *                 description: The price for the service, must be greater than 0
  *               rateType:
  *                 type: string
- *                 enum: [hourly, daily, fixed]
+ *                 enum: [hourly, daily, weekly, monthly, perJob, fixed]
  *                 example: daily
- *                 description: How the rate is charged
+ *                 description: How the rate is charged. Not case-sensitive.
  *               whatsIncluded:
  *                 type: string
  *                 example: Materials, Transport, Cleanup
- *                 description: What the rate covers, as a comma-separated list
+ *                 description: What the rate covers, as a comma-separated list or a JSON array
  *               photos:
  *                 type: array
  *                 maxItems: 5
@@ -293,6 +293,10 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *                   type: string
  *                   format: binary
  *                 description: Pictures of the artisan's work (at least one, maximum five)
+ *               video:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional video of the artisan's work (one file)
  *     responses:
  *       201:
  *         description: Service uploaded successfully
@@ -346,7 +350,11 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: [https://res.cloudinary.com/demo/image/upload/Ridify/serviceUpload/work1.jpg]
+ *                       example: [https://res.cloudinary.com/demo/image/upload/Ridify/myService/work1.jpg]
+ *                     video:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/video/upload/Ridify/myService/work.mp4
+ *                       description: Only present when a video was uploaded
  *                     createdAt:
  *                       type: string
  *                       format: date-time
@@ -356,7 +364,7 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *       401:
  *         description: User not authenticated or token is missing or invalid
  *       403:
- *         description: KYC not verified
+ *         description: Only artisans can upload a service, or KYC is not verified
  *       404:
  *         description: User not found
  *       500:
