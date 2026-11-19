@@ -1815,7 +1815,7 @@ exports.changeJobStatus = async (req, res, next) => {
             });
         }
 
-        const job = await postJobModel.findByIdAndUpdate(
+        const job = await  postJobModel.findByIdAndUpdate(
             jobId,
             { status },
             { new: true, runValidators: true }

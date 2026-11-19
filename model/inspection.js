@@ -40,6 +40,11 @@ const inspectionSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
+inspectionSchema.index(
+  { propertyId: 1, inspectorId: 1 },
+  { unique: true, partialFilterExpression: { status: { $in: ['pending', 'accepted'] } } }
+);
+
 const inspectionKyc = mongoose.model('inspectionKyc', inspectionSchema);
 
 module.exports = inspectionKyc;

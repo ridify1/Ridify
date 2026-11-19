@@ -1,5 +1,6 @@
 const userModel = require('../model/user')
 const propertyModel = require('../model/propertyUpload')
+const jobModel = require('../model/postJob')
 const artisanModel = require('../model/service')
 const express = require('express')
 const mongoose = require('mongoose')
@@ -9,8 +10,12 @@ const getProperties = async () => {
 };
 
 const getJobs = async () => {
-    return jobModel.find().sort({ createdAt: -1 }).lean(); // your job model
+    return jobModel.find().sort({ createdAt: -1 }).lean();
 };
+
+const getArtisans = async () => {
+    return artisanModel.find().sort({ createdAt: -1 }).lean();
+}
 
 exports.dashboard = async (req, res, next) => {
     try {
@@ -41,11 +46,13 @@ exports.dashboard = async (req, res, next) => {
 
             case 'findWork': {
                 const jobs = await getJobs();
+                const artisans = await getArtisans();
                 return res.status(200).json({
                     message: 'Work dashboard retrieved successfully',
                     type: 'findWork',
                     count: jobs.length,
-                    data: jobs
+                    data: jobs, 
+                    artisans: artisans
                 });
             }
 

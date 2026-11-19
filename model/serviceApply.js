@@ -6,6 +6,11 @@ const serviceApplySchema = new mongoose.Schema({
         ref: 'artisanKyc',
         required: true,
     },
+    serviceId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'services',
+        required: true,
+    },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'users',
@@ -34,6 +39,11 @@ const serviceApplySchema = new mongoose.Schema({
         trim: true 
     }
 }, { timestamps: true });
+
+serviceApplySchema.index(
+    { serviceId: 1, userId: 1 },
+    { unique: true, partialFilterExpression: { status: { $in: ['pending', 'accepted'] } } }
+);
 
 const serviceApply = mongoose.model('serviceApply', serviceApplySchema);
 

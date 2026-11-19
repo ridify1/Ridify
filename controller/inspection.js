@@ -72,6 +72,23 @@ exports.createInspection = async (req, res, next) => {
             message
         });
 
+        await notificationModel.create({
+
+            recipient: property.landLordId,
+
+            sender: req.user.id,
+
+            title: "New Inspection Request",
+
+            message: `${user.fullName} requested an inspection for your property.`,
+
+            type: "inspection",
+
+            idType: "inspectionId",
+
+            id: newInspection._id
+        });
+
         return res.status(201).json({
             message: 'Inspection request sent successfully',
             data: newInspection
