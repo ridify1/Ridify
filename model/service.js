@@ -14,7 +14,7 @@ const serviceSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        enum: ['electrician', 'plumber', 'painter', 'HVAC', 'carpenter', 'curlinary', 'security', 'welder', 'mechanic', 'cleaner', 'tailor/fashionDesigner', 'otherSkilledWork', 'null'],
+        enum: ['Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter', 'Curlinary', 'Security', 'Welder', 'Mechanic', 'Cleaner', 'Tailor/FashionDesigner', 'OtherSkilledWork', 'Null'],
         required: true,
         trim: true
     },
@@ -48,11 +48,11 @@ const serviceSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    whatsIncluded: {
+    whatsIncluded: [{
         type: String,
         required: true,
         trim: true
-    },
+    }],
     availability: {
         type: String,
         enum: ['available', 'not available'],
@@ -61,25 +61,11 @@ const serviceSchema = new mongoose.Schema({
     photos: [{
         type: String,
         required: true,
-        get () {
-          const value = this.getDataValue('photos');
-          return value ? JSON.parse(value) : [];
-        },
-        set(val) {
-          this.setDataValue('photos', JSON.stringify(val));
-        }
       }],
-    photosPublicId: {
+    photosPublicIds: [{
         type: String,
         required: true,
-        get () {
-          const value = this.getDataValue('photosPublicId');
-          return value ? JSON.parse(value) : [];
-        },
-        set(val) {
-          this.setDataValue('photosPublicId', JSON.stringify(val));
-        }
-    },
+    }],
     video: {
         type: [String],
         default: []

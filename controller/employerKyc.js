@@ -3,6 +3,7 @@ const kycModel = require('../model/employerKyc')
 const userModel = require('../model/user')
 const postJobModel = require('../model/postJob')
 const applyJobModel = require('../model/jobApply')
+const notificationModel = require('../model/notification')
 const cloudinary = require('../config/cloudinary')
 const fs = require('fs')
 const mongoose = require('mongoose')
@@ -204,6 +205,24 @@ exports.postJob = async (req, res, next) => {
             experience
         });
 
+        try{const user = await userModel.find({ role: 'jobSeeker' }).select('-password -loginAttempts -lockUntil -__v').sort({ createdAt: -1 }).lean()
+
+        if (jobSeekers.length) {
+        await notificationModel.insertMany(
+            jobSeekers.map((seeker) => ({
+                recipient: seeker._id,
+                sender: id,
+                title: 'New Job Alert',
+                message: `${poster.fullName} posted a new job: ${jobTitle}`,
+                type: 'job',
+                idType: 'jobId',
+                id: job._id
+            }))
+        );
+    }}catch(notifyError){
+        console.error('Failed to create job notifications:', notifyError.message);
+    }
+
         return res.status(201).json({
             message: 'Job posted successfully',
             data: job
@@ -341,9 +360,16 @@ exports.deleteJob = async (req, res, next) => {
             { new: true }
         );
 
+        try {
+            await notificationModel.deleteMany({ jobId: deletedJob._id, type: 'job' });
+        } catch (notifyError) {
+            console.error('Failed to remove job notifications:', notifyError.message);
+        }
+
         if (!deletedJob) {
             return next({ message: 'Job not found or not posted by you', statusCode: 404 });
         }
+
 
         return res.status(200).json({
             message: 'Job deleted successfully',
@@ -402,10 +428,14 @@ exports.applyJob = async (req, res, next) => {
             return next({ message: 'CV and Cover Letter required', statusCode: 400 });
         }
 
-        const job = await postJobModel.findById(jobId);
+        const job = await postJobModel.findOne({ _id: jobId, isDeleted: { $ne: true } });
 
         if (!job) {
             return next({ message: 'Job not found', statusCode: 404 });
+        }
+
+        if (job.status !== 'open') {
+            return next({ message: 'Job is not open for applications', statusCode: 400 });
         }
 
         if (String(job.posterId) === String(id)) {
@@ -438,6 +468,23 @@ exports.applyJob = async (req, res, next) => {
             cvPublicId: cvUpload.public_id,
             coverLetter: coverLetterUpload.secure_url,
             coverLetterPublicId: coverLetterUpload.public_id
+        });
+
+        await notificationModel.create({
+
+            recipient: job.posterId,
+
+            sender: req.user.id,
+
+            title: "New Application Request",
+
+            message: `${fullname} applied for your job: ${job.jobTitle}`,
+
+            type: "application",
+
+            idType: "applicationId",
+
+            id: application._id
         });
 
         return res.status(201).json({

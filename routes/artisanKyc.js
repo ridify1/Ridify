@@ -232,8 +232,8 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *   post:
  *     tags:
  *       - Artisan Service
- *     summary: Upload a service
- *     description: Creates a service listing for the authenticated artisan. The user must be an artisan with a verified KYC before uploading a service. At least one photo of their work is required, and up to five photos and one optional video can be uploaded to Cloudinary. The artisan is taken from the access token, not from the request body.
+ *     summary: Upload an artisan service
+ *     description: Creates a new service listing for an authenticated artisan. The artisan must have a valid access token and verified KYC before uploading a service. Photos and an optional video are uploaded to Cloudinary.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -244,6 +244,7 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *             type: object
  *             required:
  *               - service
+ *               - category
  *               - engagement
  *               - description
  *               - area
@@ -256,47 +257,90 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *               service:
  *                 type: string
  *                 example: Residential plumbing
- *                 description: The name of the service offered
+ *                 description: Name of the service being offered by the artisan
+ *
+ *               category:
+ *                 type: string
+ *                 enum:
+ *                   - Electrician
+ *                   - Plumber
+ *                   - Painter
+ *                   - HVAC
+ *                   - Carpenter
+ *                   - Cleaning
+ *                   - Curlinary
+ *                   - Security
+ *                 example: Plumber
+ *                 description: Category of the artisan service
+ *
  *               engagement:
  *                 type: string
- *                 example: Full time
- *                 description: How the artisan prefers to be engaged
+ *                 enum:
+ *                   - gig
+ *                   - contract
+ *                   - full-time
+ *                   - part-time
+ *                 example: full-time
+ *                 description: Preferred work engagement type
+ *
  *               description:
  *                 type: string
- *                 example: I install and repair pipes, taps and water heaters
- *                 description: A description of the service
+ *                 example: I install and repair pipes, taps, water heaters and drainage systems
+ *                 description: Detailed description of the service
+ *
  *               area:
  *                 type: string
  *                 example: Ikeja
- *                 description: The area the artisan serves
+ *                 description: Area where the artisan provides services
+ *
  *               cityState:
  *                 type: string
  *                 example: Ikeja, Lagos
- *                 description: The city and state the artisan serves
+ *                 description: City and state where the artisan operates
+ *
+ *               availability:
+ *                 type: string
+ *                 enum:
+ *                   - available
+ *                   - not available
+ *                 example: available
+ *                 description: Current availability status of the artisan
+ *
  *               rate:
  *                 type: number
  *                 example: 15000
- *                 description: The price for the service, must be greater than 0
+ *                 description: Service price. Must be greater than zero.
+ *
  *               rateType:
  *                 type: string
- *                 enum: [hourly, daily, weekly, monthly, perJob, fixed]
- *                 example: daily
- *                 description: How the rate is charged. Not case-sensitive.
+ *                 enum:
+ *                   - hourly
+ *                   - daily
+ *                   - weekly
+ *                   - monthly
+ *                   - perJob
+ *                   - fixed
+ *                 example: perJob
+ *                 description: How the artisan charges for the service
+ *
  *               whatsIncluded:
  *                 type: string
  *                 example: Materials, Transport, Cleanup
- *                 description: What the rate covers, as a comma-separated list or a JSON array
+ *                 description: Items included in the service price. Can be sent as comma-separated values or JSON array.
+ *
  *               photos:
  *                 type: array
  *                 maxItems: 5
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: Pictures of the artisan's work (at least one, maximum five)
+ *                 description: Images showing the artisan's work. Maximum of five images.
+ *
  *               video:
  *                 type: string
  *                 format: binary
- *                 description: Optional video of the artisan's work (one file)
+ *                 description: Optional video showing the artisan's work. Maximum of one video.
+ *
  *     responses:
  *       201:
  *         description: Service uploaded successfully
@@ -308,89 +352,142 @@ router.get('/getArtisanKyc', authenticate, getArtisanKyc)
  *                 message:
  *                   type: string
  *                   example: Service uploaded successfully
+ *
  *                 data:
  *                   type: object
  *                   properties:
  *                     _id:
  *                       type: string
- *                       example: 6ab8c0d1a675b9e38dc41e00
+ *                       example: 672ac91f98ab34e1f4d12345
+ *
  *                     artisanId:
  *                       type: string
- *                       example: 6ab0f2ffa675b9e38dc41623
+ *                       example: 672ac91f98ab34e1f4d12345
+ *
  *                     category:
  *                       type: string
  *                       example: Plumber
+ *
  *                     service:
  *                       type: string
  *                       example: Residential plumbing
+ *
  *                     engagement:
  *                       type: string
- *                       example: Full time
+ *                       example: full-time
+ *
  *                     description:
  *                       type: string
- *                       example: I install and repair pipes, taps and water heaters
+ *                       example: Installation and repair of plumbing systems
+ *
  *                     area:
  *                       type: string
  *                       example: Ikeja
+ *
  *                     cityState:
  *                       type: string
  *                       example: Ikeja, Lagos
+ *
  *                     rate:
  *                       type: number
  *                       example: 15000
+ *
  *                     rateType:
  *                       type: string
- *                       example: daily
+ *                       example: perJob
+ *
  *                     whatsIncluded:
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: [Materials, Transport, Cleanup]
+ *                       example:
+ *                         - Materials
+ *                         - Transport
+ *                         - Cleanup
+ *
  *                     photos:
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: [https://res.cloudinary.com/demo/image/upload/Ridify/myService/work1.jpg]
+ *                       example:
+ *                         - https://res.cloudinary.com/demo/image/upload/Ridify/myService/work1.jpg
+ *
+ *                     photosPublicIds:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - Ridify/myService/work1
+ *
  *                     video:
- *                       type: string
- *                       example: https://res.cloudinary.com/demo/video/upload/Ridify/myService/work.mp4
- *                       description: Only present when a video was uploaded
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - https://res.cloudinary.com/demo/video/upload/Ridify/myService/work.mp4
+ *
+ *                     videoPublicId:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example:
+ *                         - Ridify/myService/work
+ *
  *                     createdAt:
  *                       type: string
  *                       format: date-time
- *                       example: 2026-11-15T09:30:00.000Z
+ *                       example: 2026-11-19T10:30:00.000Z
+ *
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-11-19T10:30:00.000Z
+ *
  *       400:
- *         description: A required field is missing, rate is not a positive number, rate type is not allowed, or no photo was uploaded
+ *         description: Validation error. Missing required fields, invalid rate, or invalid rate type.
+ *
  *       401:
- *         description: User not authenticated or token is missing or invalid
+ *         description: User is not authenticated or token is invalid.
+ *
  *       403:
- *         description: Only artisans can upload a service, or KYC is not verified
+ *         description: KYC verification is required before uploading a service.
+ *
  *       404:
- *         description: User not found
+ *         description: User not found.
+ *
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  */
 
-router.post('/myservices', authenticate, myServices)
+router.post('/myservices', authenticate, upload.fields([
+        {
+            name: "photos",
+            maxCount: 5
+        },
+        {
+            name: "video",
+            maxCount: 1
+        }
+    ]), myServices)
 
 /**
  * @swagger
- * /api/v1/artisan/createApplication/{artisanId}:
+ * /api/v1/artisan/createApplication/{serviceId}:
  *   post:
  *     tags:
  *       - Artisan Service
  *     summary: Request an artisan's service
- *     description: Sends a service request to the artisan in the URL on behalf of the authenticated user. The artisan must have an uploaded service, and the requester cannot be the artisan. The preferred date must be in the future. A user cannot have more than one open (pending or accepted) request for the same artisan. The requester is taken from the access token, not from the request body.
+ *     description: Sends a service request for the service in the URL on behalf of the authenticated user. The service must exist, and the requester cannot be the artisan who owns it. The preferred date must be in the future. A user cannot have more than one open (pending or accepted) request for the same service. The artisan is notified when the request is created. The requester is taken from the access token, not from the request body.
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: artisanId
+ *         name: serviceId
  *         required: true
  *         schema:
  *           type: string
- *           example: 6ab0f2ffa675b9e38dc41623
- *         description: The user id of the artisan whose service is being requested
+ *           example: 6ab0f2ffa675b9e38dc41700
+ *         description: The id of the service being requested
  *     requestBody:
  *       required: true
  *       content:
@@ -403,7 +500,7 @@ router.post('/myservices', authenticate, myServices)
  *               preferredDate:
  *                 type: string
  *                 format: date-time
- *                 example: 2026-11-20T10:00:00.000Z
+ *                 example: "2026-11-20T10:00:00.000Z"
  *                 description: Must be a valid date in the future
  *               preferredTime:
  *                 type: string
@@ -432,6 +529,9 @@ router.post('/myservices', authenticate, myServices)
  *                     _id:
  *                       type: string
  *                       example: 6ab9d1e2a675b9e38dc41f00
+ *                     serviceId:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41700
  *                     artisanId:
  *                       type: string
  *                       example: 6ab0f2ffa675b9e38dc41623
@@ -441,7 +541,7 @@ router.post('/myservices', authenticate, myServices)
  *                     preferredDate:
  *                       type: string
  *                       format: date-time
- *                       example: 2026-11-20T10:00:00.000Z
+ *                       example: "2026-11-20T10:00:00.000Z"
  *                     preferredTime:
  *                       type: string
  *                       example: "10:00 AM"
@@ -451,8 +551,12 @@ router.post('/myservices', authenticate, myServices)
  *                     status:
  *                       type: string
  *                       example: pending
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2026-11-18T09:30:00.000Z"
  *       400:
- *         description: Invalid artisan ID, missing preferred date, date not valid or not in the future, or you cannot request your own service
+ *         description: Invalid service ID, missing preferred date, date not valid or not in the future, or you cannot request your own service
  *       401:
  *         description: User not authenticated or token is missing or invalid
  *       404:
@@ -463,7 +567,7 @@ router.post('/myservices', authenticate, myServices)
  *         description: Internal server error
  */
 
-router.post('/createApplication/:artisanId', authenticate, createserviceApplication)
+router.post('/createApplication/:serviceId', authenticate, createserviceApplication)
 
 /**
  * @swagger

@@ -4,165 +4,325 @@ const mongoose = require('mongoose')
 const serviceModel = require('../model/service')
 const kycModel = require('../model/artisanKyc')
 const serviceApplyModel = require('../model/serviceApply')
+const cloudinary = require('../config/cloudinary')
 const fs = require('fs');
 
-const ALLOWED_CATEGORIES = [
-    'Electrician', 'Plumber', 'Painter', 'HVAC', 'Carpenter',
-    'Cleaning', 'Curlinary', 'Security'
-]; 
 
-const RATE_TYPES = ['hourly', 'daily', 'weekly', 'monthly', 'perJob', 'fixed'];
+const ALLOWED_CATEGORIES = [
+    "Electrician",
+    "Plumber",
+    "Painter",
+    "HVAC",
+    "Carpenter",
+    "Cleaning",
+    "Curlinary",
+    "Security"
+];
+
+const RATE_TYPES = [
+    "hourly",
+    "daily",
+    "weekly",
+    "monthly",
+    "perJob",
+    "fixed"
+];
 
 const parseList = (value) => {
     if (!value) return [];
-    if (Array.isArray(value)) return value;
-    const trimmed = String(value).trim();
-    if (trimmed.startsWith('[')) {
-        try {
-            const parsed = JSON.parse(trimmed);
-            if (Array.isArray(parsed)) return parsed;
-        } catch (_) {}
-    }
-    return trimmed.split(',');
-};
 
-const removeTempFiles = (files) => {
-    for (const file of files) {
+    if (Array.isArray(value)) return value;
+
+    const text = String(value).trim();
+
+    if (text.startsWith("[")) {
         try {
-            if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        } catch (err) {
-            console.error('Temp file cleanup failed:', err.message);
+            const parsed = JSON.parse(text);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
         }
     }
+
+    return text.split(",");
 };
+
+
+const removeTempFiles = (files = []) => {
+    files.forEach(file => {
+        try {
+            if (file?.path && fs.existsSync(file.path)) {
+                fs.unlinkSync(file.path);
+            }
+        } catch (error) {
+            console.log(error.message);
+        }
+    });
+};
+
 
 exports.myServices = async (req, res, next) => {
+
     const photoFiles = req.files?.photos || [];
     const videoFiles = req.files?.video || [];
-    const allFiles = [...photoFiles, ...videoFiles];
-    const uploaded = []; // for rollback if saving fails
 
-    const uploadFiles = async (files, resourceType) => {
+    const allFiles = [
+        ...photoFiles,
+        ...videoFiles
+    ];
+
+    const uploaded = [];
+
+
+    const uploadFiles = async (files, type) => {
+
         const urls = [];
         const publicIds = [];
+
         for (const file of files) {
-            const result = await cloudinary.uploader.upload(file.path, {
-                folder: 'Ridify/myService',
-                resource_type: resourceType
-            });
+
+            const result = await cloudinary.uploader.upload(
+                file.path,
+                {
+                    folder: "Ridify/myService",
+                    resource_type: type
+                }
+            );
+
+
             urls.push(result.secure_url);
             publicIds.push(result.public_id);
-            uploaded.push({ publicId: result.public_id, resourceType });
-        }
-        return { urls, publicIds };
-    };
 
-    try {
-        const { id } = req.user;
 
-        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-            return next({ message: 'Unauthorised', statusCode: 401 });
-        }
-
-        const service = String(req.body?.service || '').trim();
-        const engagement = String(req.body?.engagement || '').trim();
-        const description = String(req.body?.description || '').trim();
-        const area = String(req.body?.area || '').trim();
-        const cityState = String(req.body?.cityState || '').trim();
-        const rateTypeInput = String(req.body?.rateType || '').trim().toLowerCase();
-        const rate = Number(req.body?.rate);
-
-        const whatsIncluded = parseList(req.body?.whatsIncluded)
-            .map((item) => String(item).trim())
-            .filter(Boolean);
-
-        if (!service || !engagement || !description || !area || !cityState || !rateTypeInput || !whatsIncluded.length) {
-            return next({ message: 'All fields are required', statusCode: 400 });
-        }
-
-        if (!Number.isFinite(rate) || rate <= 0) {
-            return next({ message: 'Rate must be a number greater than 0', statusCode: 400 });
-        }
-
-        const rateType = RATE_TYPES.find((t) => t.toLowerCase() === rateTypeInput);
-
-        if (!rateType) {
-            return next({ message: `Rate type must be one of: ${RATE_TYPES.join(', ')}`, statusCode: 400 });
-        }
-
-        if (photoFiles.length === 0) {
-            return next({ message: 'At least one picture of your work is required', statusCode: 400 });
-        }
-
-        const user = await userModel.findById(id).select('categoryForJob').lean();
-
-        if (!user) {
-            return next({ message: 'User not found', statusCode: 404 });
-        }
-
-        if (!ALLOWED_CATEGORIES.includes(user.categoryForJob)) {
-            return next({ message: 'Only artisans can upload a service', statusCode: 403 });
-        }
-
-        const kyc = await kycModel.findOne({ artisanId: id, kycVerified: true }).select('_id').lean();
-
-        if (!kyc) {
-            return next({
-                message: 'KYC not verified. Please complete KYC verification before uploading a service.',
-                statusCode: 403
+            uploaded.push({
+                publicId: result.public_id,
+                resourceType: type
             });
         }
 
-        const photoUpload = await uploadFiles(photoFiles, 'image');
-        const videoUpload = await uploadFiles(videoFiles, 'video');
+
+        return {
+            urls,
+            publicIds
+        };
+    };
+
+
+
+    try {
+
+        console.log("BODY:", req.body);
+        console.log("FILES:", req.files);
+
+
+        const { id } = req.user;
+
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: "Unauthorised",
+                statusCode: 401
+            });
+        }
+
+
+
+        const service = String(req.body.service || "").trim();
+        const category = String(req.body.category || "").trim();
+        const engagement = String(req.body.engagement || "").trim();
+        const description = String(req.body.description || "").trim();
+        const area = String(req.body.area || "").trim();
+        const cityState = String(req.body.cityState || "").trim();
+        const availability = String(req.body.availability || "").trim().toLowerCase();
+
+
+        const rate = Number(req.body.rate);
+
+
+        const rateTypeInput =
+            String(req.body.rateType || "")
+            .trim()
+            .toLowerCase();
+
+
+
+        const whatsIncluded = parseList(
+            req.body.whatsIncluded
+        )
+        .map(item => String(item).trim())
+        .filter(Boolean);
+
+
+
+        if (
+            !service ||
+            !engagement ||
+            !description ||
+            !area ||
+            !cityState ||
+            !whatsIncluded.length
+        ) {
+            return next({
+                message: "All fields are required",
+                statusCode:400
+            });
+        }
+
+
+
+        if (!Number.isFinite(rate) || rate <= 0) {
+
+            return next({
+                message:"Rate must be a valid number",
+                statusCode:400
+            });
+        }
+
+
+
+        const rateType = RATE_TYPES.find(
+            type => type.toLowerCase() === rateTypeInput
+        );
+
+
+        if (!rateType) {
+
+            return next({
+                message:"Invalid rate type",
+                statusCode:400
+            });
+
+        }
+
+
+
+
+        const user = await userModel
+            .findById(id)
+            .select("categoryForArtisan fullName")
+            .lean();
+
+
+
+        if (!user) {
+            return next({
+                message:"User not found",
+                statusCode:404
+            });
+        }
+
+
+        const kyc = await kycModel.findOne({
+            artisanId:id,
+            kycVerified:true
+        })
+        .select("_id")
+        .lean();
+
+
+
+        if (!kyc) {
+
+            return next({
+                message:"KYC not verified",
+                statusCode:403
+            });
+        }
+
+
+        const photoUpload =
+            await uploadFiles(photoFiles,"image");
+
+
+        const videoUpload =
+            await uploadFiles(videoFiles,"video");
+
+
+
 
         const created = await serviceModel.create({
-            artisanId: id,
-            artisanKycId: kyc._id,
-            category: user.categoryForJob,
+
+            artisanId:id,
+
+
+            category:user.categoryForArtisan,
+
             service,
+
             engagement,
+
+            availability,
+
             description,
+
             area,
+
             cityState,
+
             rate,
+
             rateType,
+
+
             whatsIncluded,
-            photos: photoUpload.urls,
-            photoPublicIds: photoUpload.publicIds,
-            video: videoUpload.urls[0],
-            videoPublicId: videoUpload.publicIds[0]
+
+
+            photos:photoUpload.urls,
+
+
+            photosPublicIds:photoUpload.publicIds,
+
+
+            video:videoUpload.urls,
+
+
+            videoPublicId:videoUpload.publicIds
+
         });
 
+
+
         return res.status(201).json({
-            message: 'Service uploaded successfully',
-            data: {
-                _id: created._id,
-                artisanId: created.artisanId,
-                category: created.category,
-                service: created.service,
-                engagement: created.engagement,
-                description: created.description,
-                area: created.area,
-                cityState: created.cityState,
-                rate: created.rate,
-                rateType: created.rateType,
-                whatsIncluded: created.whatsIncluded,
-                photos: created.photos,
-                video: created.video,
-                createdAt: created.createdAt
-            }
+
+            message:"Service uploaded successfully",
+
+            data:created
+
         });
-    } catch (error) {
+
+
+
+    } catch(error){
+
+
         await Promise.all(
-            uploaded.map((u) =>
-                cloudinary.uploader.destroy(u.publicId, { resource_type: u.resourceType }).catch(() => {})
+
+            uploaded.map(file =>
+                cloudinary.uploader
+                .destroy(
+                    file.publicId,
+                    {
+                        resource_type:file.resourceType
+                    }
+                )
+                .catch(()=>{})
             )
+
         );
-        return next({ message: error.message, statusCode: 500 });
+
+
+        return next({
+            message:error.message,
+            statusCode:500
+        });
+
+
     } finally {
+
         removeTempFiles(allFiles);
+
     }
+
 };
 
 exports.createserviceApplication = async (req, res, next) => {
@@ -173,10 +333,10 @@ exports.createserviceApplication = async (req, res, next) => {
             return next({ message: 'User not authenticated.', statusCode: 401 });
         }
 
-        const { artisanId } = req.params;
+        const { serviceId  } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(artisanId)) {
-            return next({ message: 'Invalid artisan ID', statusCode: 400 });
+        if (!mongoose.Types.ObjectId.isValid(serviceId)) {
+            return next({ message: 'Invalid service ID', statusCode: 400 });
         }
 
         const { preferredDate } = req.body;
@@ -192,12 +352,12 @@ exports.createserviceApplication = async (req, res, next) => {
             return next({ message: 'Choose a valid future date', statusCode: 400 });
         }
 
-        const userExists = await userModel.exists({ _id: id });
+        const userExists = await userModel.findById(id).select('fullName').lean();
         if (!userExists) {
             return next({ message: 'User not found.', statusCode: 404 });
         }
 
-        const service = await serviceModel.findOne({ artisanId }).select('artisanId').lean();
+        const service = await serviceModel.findOne({ _id: serviceId }).select('artisanId').lean();
 
         if (!service) {
             return next({ message: 'Service not found.', statusCode: 404 });
@@ -208,7 +368,7 @@ exports.createserviceApplication = async (req, res, next) => {
         }
 
         const existing = await serviceApplyModel.findOne({
-            artisanId,
+            serviceId,
             userId: id,
             status: { $in: ['pending', 'accepted'] }
         });
@@ -218,12 +378,32 @@ exports.createserviceApplication = async (req, res, next) => {
         }
 
         const newService = await serviceApplyModel.create({
+            serviceId,
             artisanId: service.artisanId,
             userId: id,
             preferredDate: date,
             preferredTime,
             message
         });
+
+        try{await notificationModel.create({
+
+            recipient: service.artisanId,
+
+            sender: userExists._id,
+
+            title: "New Service Application",
+
+            message: `${userExists.fullName} requested your service.`,
+
+            type: "serviceApplication",
+
+            idType: "serviceApplicationId",
+
+            id: newService._id
+        })}catch (notifyError) {
+            console.error('Failed to create notification:', notifyError.message);
+        };
 
         return res.status(201).json({
             message: 'Service request sent successfully',

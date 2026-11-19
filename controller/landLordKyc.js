@@ -99,6 +99,23 @@ const selfieUpload = await uploadGroup(selfieFiles);
 
         const kyc = await kycModel.create(landlordData);
 
+        try {
+            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+            if (admins.length) {
+                await notificationModel.insertMany(admins.map((a) => ({
+                    recipient: a._id,
+                    sender: id,
+                    title: 'New KYC Submission',
+                    message: `${fullLegalName} submitted a new KYC application.`,
+                    type: 'kyc',
+                    idType: 'kycId',
+                    id: kyc._id
+                })));
+            }
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
+        }
+
         res.status(201).json({
             message: "Landlord KYC submitted successfully",
             data: kyc
@@ -278,6 +295,27 @@ exports.propertyUpload = async (req, res, next) => {
             videoPublicId: videoUpload.publicIds[0]
         });
 
+        try {
+    const recipients = await userModel.find({ role: 'user' }).select('_id').lean();
+
+        if (recipients.length) {
+            await notificationModel.insertMany(
+                recipients.map((r) => ({
+                    recipient: r._id,
+                    sender: id,
+                    title: 'New Property Upload',
+                    message: `${user.fullName} uploaded a new property.`,
+                    type: 'property',
+                    idType: 'propertyId',
+                    id: property._id
+                })),
+                { ordered: false }
+            );
+        }
+    } catch (notifyError) {
+        console.error('Failed to create property notifications:', notifyError.message);
+    }
+
         res.status(201).json({
             message: 'Property uploaded successfully',
             data: property
@@ -360,7 +398,7 @@ exports.updatePropertyUpload = async (req, res, next) => {
             state, city, streetAddress
         };
         for (const [key, value] of Object.entries(simpleFields)) {
-            if (value !== undefined && value !== '') propertyData[key] = value;
+            if (value !== null && value !== '') propertyData[key] = value;
         }
 
         if (rent !== undefined && rent !== '') {
@@ -450,6 +488,23 @@ exports.updatePropertyUpload = async (req, res, next) => {
 
         for (const id of oldVideos) {
             try { await cloudinary.uploader.destroy(id, { resource_type: "video" }); } catch (error) {}
+        }
+
+        try {
+            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+            if (admins.length) {
+                await notificationModel.insertMany(admins.map((a) => ({
+                    recipient: a._id,
+                    sender: id,
+                    title: 'New KYC Submission',
+                    message: `${kyc.fullLegalName} submitted a new KYC application.`,
+                    type: 'update',
+                    idType: 'updateId',
+                    id: propertyId
+                })));
+            }
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
         }
 
         res.status(200).json({
