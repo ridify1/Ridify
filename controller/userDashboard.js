@@ -36,23 +36,29 @@ exports.dashboard = async (req, res, next) => {
         switch (user.searchingFor) {
             case 'findAHome': {
                 const properties = await getProperties();
+                const jobs = await getJobs();
+                const artisans = await getArtisans();
                 return res.status(200).json({
                     message: 'Home dashboard retrieved successfully',
                     type: 'findAHome',
                     count: properties.length,
-                    data: properties
+                    data: properties,
+                    jobs: jobs,
+                    artisans: artisans
                 });
             }
 
             case 'findWork': {
                 const jobs = await getJobs();
                 const artisans = await getArtisans();
+                const properties = await getProperties();
                 return res.status(200).json({
                     message: 'Work dashboard retrieved successfully',
                     type: 'findWork',
                     count: jobs.length,
                     data: jobs, 
-                    artisans: artisans
+                    artisans: artisans,
+                    properties: properties
                 });
             }
 

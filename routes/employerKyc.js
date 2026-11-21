@@ -244,7 +244,7 @@ router.get('/getEmployerKyc', authenticate, getEmployerKyc)
 
 /**
  * @swagger
- * /api/v1/job/postJob:
+ * /api/v1/hr/postJob:
  *   post:
  *     tags:
  *       - Job
@@ -340,7 +340,7 @@ router.post('/postJob', authenticate, postJob);
 
 /**
  * @swagger
- * /api/v1/job/allJobs:
+ * /api/v1/hr/allJobs:
  *   get:
  *     tags:
  *       - Job
@@ -472,7 +472,7 @@ router.get('/oneJob/:jobId', authenticate, getJob);
 
 /**
  * @swagger
- * /api/v1/job/changeStatus/{jobId}:
+ * /api/v1/hr/changeStatus/{jobId}:
  *   patch:
  *     tags:
  *       - Job
@@ -546,7 +546,7 @@ router.patch('/changeStatus/:jobId', authenticate, changeStatus);
 
 /**
  * @swagger
- * /api/v1/job/deleteJob/{jobId}:
+ * /api/v1/hr/deleteJob/{jobId}:
  *   delete:
  *     tags:
  *       - Job
@@ -599,7 +599,7 @@ router.delete('/deleteJob/:jobId', authenticate, deleteJob);
 
 /**
  * @swagger
- * /api/v1/job/applyJob/{jobId}:
+ * /api/v1/hr/applyJob/{jobId}:
  *   post:
  *     tags:
  *       - Job
@@ -714,7 +714,7 @@ router.post(
 
 /**
  * @swagger
- * /api/v1/job/allJobsByApplicant:
+ * /api/v1/hr/allJobsByApplicant:
  *   get:
  *     tags:
  *       - Job
@@ -799,7 +799,7 @@ router.get('/allJobsByApplicant', authenticate, getJobsByApplicant);
 
 /**
  * @swagger
- * /api/v1/job/getByJobId/{jobId}:
+ * /api/v1/hr/getByJobId/{jobId}:
  *   get:
  *     tags:
  *       - Job
@@ -877,7 +877,7 @@ router.get('/getByJobId/:jobId', authenticate, getJobsByJobId);
 
 /**
  * @swagger
- * /api/v1/job/singleApplication/{applicationId}:
+ * /api/v1/hr/singleApplication/{applicationId}:
  *   get:
  *     tags:
  *       - Job
