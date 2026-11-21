@@ -55,7 +55,7 @@ const serviceSchema = new mongoose.Schema({
     }],
     availability: {
         type: String,
-        enum: ['available', 'not available'],
+        enum: ['available', 'notAvailable'],
         trim: true
     },
     photos: [{
