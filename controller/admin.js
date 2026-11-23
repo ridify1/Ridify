@@ -218,18 +218,41 @@ const user = await userModel.findOne(query);
             })
         }
 
+        const existing = await landLordKycModel.findById(kycId).select('kycVerified landLordId').lean();
+
+        if (!existing) {
+            return next({ message: 'Landlord KYC not found', statusCode: 404 });
+        }
+
+        if (existing.kycVerified === kycVerified) {
+            return next({
+                message: `KYC is already ${kycVerified ? 'verified' : 'unverified'}`,
+                statusCode: 409
+            });
+        }
+
         const update = kycVerified
       ? { kycVerified, verifiedBy: req.user.id, verifiedAt: new Date() }
       : { kycVerified, verifiedBy: null, verifiedAt: null }
 
-        const updatedKyc = await landLordKycModel.findByIdAndUpdate(kycId, { kycVerified, verifiedBy: req.user.id, verifiedAt: new Date() }, { new: true, runValidators: true }).populate('landLordId', 'fullName email phoneNumber');
+        const updatedKyc = await landLordKycModel
+            .findByIdAndUpdate(kycId, update, { new: true, runValidators: true })
+            .select('landLordId kycVerified verifiedBy verifiedAt');
 
-
-        if(!updatedKyc){
-            return next({
-                message: `Landlord KYC not found`,
-                statusCode: 404
-            })
+        try {
+            await createNotification({
+                recipient: existing.landLordId,
+                sender: id,
+                title: 'KYC Status Updated',
+                message: kycVerified
+                    ? 'Your KYC has been verified. You can now upload properties.'
+                    : 'Your KYC was not approved. Please contact support.',
+                type: 'kyc',
+                idType: 'kycId',
+                id: updatedKyc._id
+            });
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
         }
 
         res.status(200).json({
@@ -296,6 +319,19 @@ const user = await userModel.findOne(query);
       console.error('Failed to send KYC denial email:', emailError.message)
     }
 
+    try {
+    await createNotification({
+        recipient: existing.landLordId,
+        sender: id,
+        title: 'KYC Deleted',
+        message: 'Your KYC was deleted. Please contact support.',
+        type: 'kyc',
+        idType: 'kycId',
+        id: existing._id
+        });
+    } catch (notifyError) {
+        console.error('Failed to create KYC notification:', notifyError.message);
+    }
 
         res.status(200).json({
             message: `Landlord KYC deleted successfully`,
@@ -514,6 +550,27 @@ const user = await userModel.findOne(query);
       console.error('Failed to send account deletion email:', emailError.message)
     }
 
+    try {
+    const admins = await userModel
+        .find({ role: 'admin', _id: { $ne: id }, isDeleted: { $ne: true } })
+        .select('_id')
+        .lean();
+
+    if (admins.length) {
+        await notificationModel.insertMany(
+            admins.map((a) => ({
+                recipient: a._id,
+                sender: id,
+                title: 'User Deleted',
+                message: `${adminName} deleted the account of ${deletedUser.fullName}.`,
+                type: 'user'
+            }))
+        );
+    }
+} catch (notifyError) {
+    console.error('Failed to create user deletion notification:', notifyError.message);
+}
+
         res.status(200).json({
             message: 'User deleted successfully'
         })
@@ -666,6 +723,15 @@ exports.deleteProperty = async (req, res, next) => {
             });
         }
 
+        await createNotification({
+    recipient: property._id,
+    sender: req.user.id,
+    title: "New Property Delete",
+    message: `An Admin deleted Your property.Please contact support`,
+    type: "Property",
+    idType: "propertyId",
+});
+
         res.status(200).json({
             message: 'Property deleted successfully'
         });
@@ -811,6 +877,22 @@ exports.getAllJobAgencyKyc = async (req, res, next) => {
             })
         }
 
+        try {
+            await createNotification({
+                recipient: updatedKyc.jobAgencyId,
+                sender: id,
+                title: 'KYC Status Updated',
+                message: kycVerified
+                    ? 'Your KYC has been verified.'
+                    : 'Your KYC was not approved. Please contact support.',
+                type: 'kyc',
+                idType: 'kycId',
+                id: updatedKyc._id
+            });
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
+        }
+
         res.status(200).json({
             message: `Job Agency KYC updated successfully`,
             data: updatedKyc
@@ -877,6 +959,20 @@ exports.getAllJobAgencyKyc = async (req, res, next) => {
     } catch (emailError) {
       console.error('Failed to send KYC denial email:', emailError.message)
     }
+
+    try {
+    await createNotification({
+        recipient: deletedKyc.jobAgencyId,
+        sender: id,
+        title: 'KYC Deleted',
+        message: 'Your KYC was deleted. Please contact support.',
+        type: 'kyc',
+        idType: 'kycId',
+        id: existing._id
+    });
+} catch (notifyError) {
+    console.error('Failed to create KYC notification:', notifyError.message);
+}
 
 
         res.status(200).json({
@@ -1065,6 +1161,23 @@ exports.updateHrKycStatus = async (req, res, next) => {
             return next({ message: 'HR KYC not found', statusCode: 404 });
         }
 
+        try {
+            await createNotification({
+                recipient: updatedKyc.employerId,
+                sender: id,
+                title: 'KYC Status Updated',
+                message: kycVerified
+                    ? 'Your KYC has been verified. You can now upload properties.'
+                    : 'Your KYC was not approved. Please contact support.',
+                type: 'kyc',
+                idType: 'kycId',
+                id: updatedKyc._id
+            });
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
+        }
+
+
         return res.status(200).json({
             message: 'HR KYC updated successfully',
             data: updatedKyc
@@ -1125,6 +1238,20 @@ exports.deleteHrKyc = async (req, res, next) => {
         } catch (emailError) {
             console.error('Failed to send KYC denial email:', emailError.message);
         }
+
+        try {
+    await createNotification({
+        recipient: deletedKyc.employerId,
+        sender: id,
+        title: 'KYC Deleted',
+        message: 'Your KYC was deleted. Please contact support.',
+        type: 'kyc',
+        idType: 'kycId',
+        id: existing._id
+    });
+} catch (notifyError) {
+    console.error('Failed to create KYC notification:', notifyError.message);
+}
 
         return res.status(200).json({
             message: 'HR KYC deleted successfully',
@@ -1319,6 +1446,23 @@ exports.updateArtisanKycStatus = async (req, res, next) => {
             return next({ message: 'Artisan KYC not found', statusCode: 404 });
         }
 
+        try {
+            await createNotification({
+                recipient: updatedKyc.artisanId,
+                sender: id,
+                title: 'KYC Status Updated',
+                message: kycVerified
+                    ? 'Your KYC has been verified. You can now upload properties.'
+                    : 'Your KYC was not approved. Please contact support.',
+                type: 'kyc',
+                idType: 'kycId',
+                id: updatedKyc._id
+            });
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
+        }
+
+
         return res.status(200).json({
             message: 'Artisan KYC updated successfully',
             data: updatedKyc
@@ -1373,6 +1517,20 @@ exports.deleteArtisanKyc = async (req, res, next) => {
         } catch (emailError) {
             console.error('Failed to send KYC denial email:', emailError.message);
         }
+
+        try {
+    await createNotification({
+        recipient: deletedKyc.artisanId,
+        sender: id,
+        title: 'KYC Deleted',
+        message: 'Your KYC was deleted. Please contact support.',
+        type: 'kyc',
+        idType: 'kycId',
+        id: existing._id
+    });
+} catch (notifyError) {
+    console.error('Failed to create KYC notification:', notifyError.message);
+}
 
         return res.status(200).json({
             message: 'Artisan KYC deleted successfully',
@@ -1644,6 +1802,22 @@ exports.deleteInspection = async (req, res, next) => {
             return next({ message: 'Inspection not found', statusCode: 404 });
         }
 
+        const recipients = [deletedInspection.inspectorId, deletedInspection.landLordId];
+
+        await Promise.all(
+            recipients.map((recipient) =>
+                createNotification({
+                    recipient,
+                    sender: id,
+                    title: 'Inspection deleted',
+                    message: 'Your inspection was deleted. Please contact support.',
+                    type: 'inspection',
+                    idType: 'inspectionId',
+                    id: deletedInspection._id
+                })
+            )
+        );
+
         return res.status(200).json({
             message: 'Inspection deleted successfully',
             data: {
@@ -1825,6 +1999,21 @@ exports.changeJobStatus = async (req, res, next) => {
             return next({ message: 'Job not found', statusCode: 404 });
         }
 
+        try {
+    await createNotification({
+        recipient: job.posterId,
+        sender: id,
+        title: 'Job status updated by admin',
+        message: `An admin changed the status of your job "${job.jobTitle}" to ${status}. Please contact support if you have questions.`,
+        type: 'job',
+        idType: 'jobId',
+        id: job._id
+    });
+} catch (notifyError) {
+    console.error('Failed to create job notification:', notifyError.message);
+}
+
+
         return res.status(200).json({
             message: 'Status updated successfully',
             data: job
@@ -1859,6 +2048,20 @@ exports.deleteJobAdmin = async (req, res, next) => {
         if (!deletedJob) {
             return next({ message: 'Job not found', statusCode: 404 });
         }
+
+        try {
+    await createNotification({
+        recipient: deletedJob.posterId,
+        sender: id,
+        title: 'Job Deleted',
+        message: 'Your Job was deleted. Please contact support.',
+        type: 'job',
+        idType: 'jobId',
+        id: deletedJob._id
+    });
+} catch (notifyError) {
+    console.error('Failed to create KYC notification:', notifyError.message);
+}
 
         return res.status(200).json({
             message: 'Job deleted successfully',

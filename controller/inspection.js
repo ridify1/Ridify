@@ -72,22 +72,59 @@ exports.createInspection = async (req, res, next) => {
             message
         });
 
-        await notificationModel.create({
+        const inspector = await userModel.findById(id).select('fullName').lean();
 
-            recipient: property.landLordId,
+        if (!inspector) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
 
-            sender: req.user.id,
+        try {
+            const admins = await userModel
+                .find({ role: 'admin', isDeleted: { $ne: true } })
+                .select('_id')
+                .lean();
 
-            title: "New Inspection Request",
+            const notifications = new Map();
 
-            message: `${user.fullName} requested an inspection for your property.`,
+            notifications.set(String(job.posterId), {
+                recipient: newInspection.landLordId,
+                sender: id,
+                title: 'New inspection Request',
+                message: `${inspector.fullName} applied to inspect your property: ${newInspection.propertyId}`,
+                type: 'inspection',
+                idType: 'inspectionId',
+                id: newInspection._id
+            });
 
-            type: "inspection",
+            for (const a of admins) {
+                const key = String(a._id);
+                if (!notifications.has(key) && key !== String(id)) {
+                    notifications.set(key, {
+                        recipient: a._id,
+                        sender: id,
+                        title: 'New Property Application',
+                        message: `${inspector.fullName} applied for property inspection: ${newInspection.propertyId}`,
+                        type: 'inspection',
+                        idType: 'inspectionId',
+                        id: newInspection._id
+                    });
+                }
+            }
 
-            idType: "inspectionId",
+            notifications.set(String(id), {
+                recipient: id,
+                sender: newInspection.inspectorId,
+                title: 'Inspection Submitted',
+                message: `Your application to inspect ${newInspection.propertyId} was submitted successfully.`,
+                type: 'inspection',
+                idType: 'inspectionId',
+                id: newInspection._id
+            });
 
-            id: newInspection._id
-        });
+            await notificationModel.insertMany([...notifications.values()], { ordered: false });
+        } catch (notifyError) {
+            console.error('Failed to create application notifications:', notifyError.message);
+        }
 
         return res.status(201).json({
             message: 'Inspection request sent successfully',
@@ -235,6 +272,60 @@ exports.updateInspectionStatus = async (req, res, next) => {
         inspection.declineReason = status === 'declined' ? declineReason : undefined;
 
         await inspection.save();
+
+        const inspector = await userModel.findById(id).select('fullName').lean();
+
+        if (!inspector) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
+
+        try {
+            const admins = await userModel
+                .find({ role: 'admin', isDeleted: { $ne: true } })
+                .select('_id')
+                .lean();
+
+            const notifications = new Map();
+
+            notifications.set(String(job.posterId), {
+                recipient: inspection.landLordId,
+                sender: id,
+                title: 'Inspection status changed',
+                message: `${inspector.fullName} changed the status for this inspection: ${inspection.propertyId}`,
+                type: 'inspection',
+                idType: 'inspectionId',
+                id: inspection._id
+            });
+
+            for (const a of admins) {
+                const key = String(a._id);
+                if (!notifications.has(key) && key !== String(id)) {
+                    notifications.set(key, {
+                        recipient: a._id,
+                        sender: id,
+                        title: 'Inspection status changed',
+                        message: `${inspector.fullName} changed inspection status for this property: ${inspection.propertyId}`,
+                        type: 'inspection',
+                        idType: 'inspectionId',
+                        id: inspection._id
+                    });
+                }
+            }
+
+            notifications.set(String(id), {
+                recipient: id,
+                sender: inspection.landLordId,
+                title: 'Inspection status changed',
+                message: `Your inspection for ${inspection.propertyId} has changed.`,
+                type: 'inspection',
+                idType: 'inspectionId',
+                id: inspection._id
+            });
+
+            await notificationModel.insertMany([...notifications.values()], { ordered: false });
+        } catch (notifyError) {
+            console.error('Failed to create inspection notifications:', notifyError.message);
+        }
 
         return res.status(200).json({
             message: 'Inspection status updated successfully',

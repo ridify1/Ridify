@@ -113,6 +113,23 @@ const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
 
         const kyc = await kycModel.create(employerData);
 
+        try {
+                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+                    if (admins.length) {
+                        await notificationModel.insertMany(admins.map((a) => ({
+                            recipient: a._id,
+                            sender: id,
+                            title: 'New KYC Submission',
+                            message: `${fullLegalName} submitted a new KYC application.`,
+                            type: 'kyc',
+                            idType: 'kycId',
+                            id: kyc._id
+                        })));
+                    }
+                } catch (notifyError) {
+                    console.error('Failed to create KYC notification:', notifyError.message);
+                }
+
         res.status(201).json({
             message: "Employer KYC submitted successfully",
             data: kyc
@@ -163,9 +180,19 @@ exports.getEmployerKyc = async (req, res, next) => {
     }
 }
 
-const JOB_POSTER_ROLES = ['hr', 'employer', 'jobagent']; 
+const JOB_POSTER_ROLES = ['hr', 'employer', 'jobAgent']; 
+
+const removeTempFile = (file) => {
+    try {
+        if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+    } catch (err) {
+        console.error('Temp file cleanup failed:', err.message);
+    }
+};
 
 exports.postJob = async (req, res, next) => {
+    let uploadedPublicId = null;
+
     try {
         const { id } = req.user;
 
@@ -173,17 +200,17 @@ exports.postJob = async (req, res, next) => {
             return next({ message: 'Unauthorised', statusCode: 401 });
         }
 
-        const jobTitle = String(req.body.jobTitle || '').trim();
-        const aboutJob = String(req.body.aboutJob || '').trim();
-        const description = String(req.body.description || '').trim();
-        const qualification = String(req.body.qualification || '').trim();
-        const experience = String(req.body.experience || '').trim();
+        const jobTitle = String(req.body?.jobTitle || '').trim();
+        const aboutJob = String(req.body?.aboutJob || '').trim();
+        const description = String(req.body?.description || '').trim();
+        const qualification = String(req.body?.qualification || '').trim();
+        const experience = String(req.body?.experience || '').trim();
 
         if (!jobTitle || !aboutJob || !description || !qualification || !experience) {
             return next({ message: 'Please fill all the fields', statusCode: 400 });
         }
 
-        const poster = await userModel.findById(id).select('role');
+        const poster = await userModel.findById(id).select('role fullName').lean();
 
         if (!poster) {
             return next({ message: 'User not found', statusCode: 404 });
@@ -196,39 +223,64 @@ exports.postJob = async (req, res, next) => {
             });
         }
 
+        let image;
+        let imagePublicId;
+
+        if (req.file) {
+            const result = await cloudinary.uploader.upload(req.file.path, {
+                folder: 'Ridify/postJob'
+            });
+            image = result.secure_url;
+            imagePublicId = result.public_id;
+            uploadedPublicId = result.public_id;
+        }
+
         const job = await postJobModel.create({
             posterId: id,
             jobTitle,
             aboutJob,
             description,
             qualification,
-            experience
+            experience,
+            ...(image ? { image, imagePublicId } : {})
         });
 
-        try{const user = await userModel.find({ role: 'jobSeeker' }).select('-password -loginAttempts -lockUntil -__v').sort({ createdAt: -1 }).lean()
+        uploadedPublicId = null; 
 
-        if (jobSeekers.length) {
-        await notificationModel.insertMany(
-            jobSeekers.map((seeker) => ({
-                recipient: seeker._id,
-                sender: id,
-                title: 'New Job Alert',
-                message: `${poster.fullName} posted a new job: ${jobTitle}`,
-                type: 'job',
-                idType: 'jobId',
-                id: job._id
-            }))
-        );
-    }}catch(notifyError){
-        console.error('Failed to create job notifications:', notifyError.message);
-    }
+        try {
+            const jobSeekers = await userModel.find({ role: 'jobSeeker' }).select('_id').lean();
+
+            if (jobSeekers.length) {
+                await notificationModel.insertMany(
+                    jobSeekers.map((seeker) => ({
+                        recipient: seeker._id,
+                        sender: id,
+                        title: 'New Job Alert',
+                        message: `${poster.fullName} posted a new job: ${jobTitle}`,
+                        type: 'job',
+                        idType: 'jobId',
+                        id: job._id
+                    })),
+                    { ordered: false }
+                );
+            }
+        } catch (notifyError) {
+            console.error('Failed to create job notifications:', notifyError.message);
+        }
+
+        const { imagePublicId: _omit, ...safeJob } = job.toObject();
 
         return res.status(201).json({
             message: 'Job posted successfully',
-            data: job
+            data: safeJob
         });
     } catch (error) {
+        if (uploadedPublicId) {
+            await cloudinary.uploader.destroy(uploadedPublicId).catch(() => {});
+        }
         return next({ message: error.message, statusCode: 500 });
+    } finally {
+        removeTempFile(req.file);
     }
 };
 
@@ -331,6 +383,24 @@ exports.changeStatus = async (req, res, next) => {
             return next({ message: 'Job not found or not posted by you', statusCode: 404 });
         }
 
+        try {
+                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+                    if (admins.length) {
+                        await notificationModel.insertMany(admins.map((a) => ({
+                            recipient: a._id,
+                            sender: id,
+                            title: 'New KYC Submission',
+                            message: `${fullLegalName} changed job status.`,
+                            type: 'job',
+                            idType: 'jobId',
+                            id: job._id
+                        })));
+                    }
+                } catch (notifyError) {
+                    console.error('Failed to create KYC notification:', notifyError.message);
+                }
+
+
         return res.status(200).json({
             message: 'Status updated successfully',
             data: job
@@ -360,15 +430,28 @@ exports.deleteJob = async (req, res, next) => {
             { new: true }
         );
 
-        try {
-            await notificationModel.deleteMany({ jobId: deletedJob._id, type: 'job' });
-        } catch (notifyError) {
-            console.error('Failed to remove job notifications:', notifyError.message);
-        }
+        const check = await userModel.findById(id)
 
         if (!deletedJob) {
             return next({ message: 'Job not found or not posted by you', statusCode: 404 });
         }
+
+        try {
+                            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+                            if (admins.length) {
+                                await notificationModel.deleteMany(admins.map((a) => ({
+                                    recipient: a._id,
+                                    sender: id,
+                                    title: 'New Job deletion',
+                                    message: `${check.fullName} deleted a job.`,
+                                    type: 'job',
+                                    idType: 'jobId',
+                                    id: deletedJob._id
+                                })));
+                            }
+                        } catch (notifyError) {
+                            console.error('Failed to create Job notification:', notifyError.message);
+                        }
 
 
         return res.status(200).json({
@@ -470,22 +553,59 @@ exports.applyJob = async (req, res, next) => {
             coverLetterPublicId: coverLetterUpload.public_id
         });
 
-        await notificationModel.create({
+        const applicant = await userModel.findById(id).select('fullName').lean();
 
-            recipient: job.posterId,
+        if (!applicant) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
 
-            sender: req.user.id,
+        try {
+            const admins = await userModel
+                .find({ role: 'admin', isDeleted: { $ne: true } })
+                .select('_id')
+                .lean();
 
-            title: "New Application Request",
+            const notifications = new Map();
 
-            message: `${fullname} applied for your job: ${job.jobTitle}`,
+            notifications.set(String(job.posterId), {
+                recipient: job.posterId,
+                sender: id,
+                title: 'New Application Request',
+                message: `${applicant.fullName} applied for your job: ${job.jobTitle}`,
+                type: 'application',
+                idType: 'applicationId',
+                id: application._id
+            });
 
-            type: "application",
+            for (const a of admins) {
+                const key = String(a._id);
+                if (!notifications.has(key) && key !== String(id)) {
+                    notifications.set(key, {
+                        recipient: a._id,
+                        sender: id,
+                        title: 'New Job Application',
+                        message: `${applicant.fullName} applied for the job: ${job.jobTitle}`,
+                        type: 'job',
+                        idType: 'jobId',
+                        id: job._id
+                    });
+                }
+            }
 
-            idType: "applicationId",
+            notifications.set(String(id), {
+                recipient: id,
+                sender: job.posterId,
+                title: 'Application Submitted',
+                message: `Your application for ${job.jobTitle} was submitted successfully.`,
+                type: 'application',
+                idType: 'applicationId',
+                id: application._id
+            });
 
-            id: application._id
-        });
+            await notificationModel.insertMany([...notifications.values()], { ordered: false });
+        } catch (notifyError) {
+            console.error('Failed to create application notifications:', notifyError.message);
+        }
 
         return res.status(201).json({
             message: 'Job applied successfully',
@@ -534,7 +654,7 @@ exports.getJobsByApplicant = async (req, res, next) => {
             count: applications.length,
             data: applications
         });
-        
+
 }catch (error){
         return next({
             message: error.message,

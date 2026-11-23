@@ -31,12 +31,13 @@ const notificationSchema = new mongoose.Schema({
             "system",
             "kyc",
             "property",
-            "update"
+            "update",
+            "user"
         ]
     },
     idType: {
         type: String,
-        enum: ["propertyId", "jobId", "serviceId", "paymentId", "systemId", "inspectionId", "applicationId", "serviceApplicationId", "kycId", "updateId"]
+        enum: ["propertyId", "jobId","userId", "serviceId", "paymentId", "systemId", "inspectionId", "applicationId", "serviceApplicationId", "kycId", "updateId"]
     },
     id: {
         type: mongoose.Schema.Types.ObjectId,
