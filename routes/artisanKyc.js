@@ -2,7 +2,7 @@ const express = require('express');
 const upload = require('../middleware/multer');
 const { authenticate } = require('../middleware/auth');
 const { artisanKyc, getArtisanKyc } = require('../controller/artisanKyc');
-const { myServices, createserviceApplication, getArtisanApplications, getArtisanInspection, updateApplicationStatus, getUsersRequests, getUsersApplication } = require('../controller/jobservice');
+const { myServices, createserviceApplication, getArtisanApplications, getArtisanInspection, updateApplicationStatus, getUsersRequests, getUsersApplication, getServices } = require('../controller/jobservice');
 const router = express.Router();
 
 /**
@@ -469,6 +469,8 @@ router.post('/myservices', authenticate, upload.fields([
             maxCount: 1
         }
     ]), myServices)
+
+router.get('/getServices', authenticate, getServices)
 
 /**
  * @swagger
