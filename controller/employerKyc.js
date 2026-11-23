@@ -522,20 +522,19 @@ exports.getJobsByApplicant = async (req, res, next) => {
         })
     }
 
-    const findJobs = await applyJobModel.find({ _id: applicantId })
+    const applications = await applyJobModel
+            .find({ applicantId: id })
+            .select('-cvPublicId -coverLetterPublicId')
+            .populate('jobId', 'jobTitle aboutJob experience posterId')
+            .sort({ createdAt: -1 })
+            .lean();
 
-    if (findJobs.length === 0) {
-        return next({
-            message: 'No applications to display',
-            statusCode: 200
-        })
-    }
-
-    res.status(200).json({
-        message: 'Applications',
-        count: findJobs.length,
-        data: findJobs
-    })
+    return res.status(200).json({
+            message: applications.length ? 'Applications retrieved successfully' : 'No applications to display',
+            count: applications.length,
+            data: applications
+        });
+        
 }catch (error){
         return next({
             message: error.message,
