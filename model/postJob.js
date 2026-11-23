@@ -39,11 +39,9 @@ const postJobSchema = new mongoose.Schema({
     },
     image: {
         type: String,
-        required: true,
       },
     imagePublicId: {
         type: String,
-        required: true,
     },
     isDeleted: {
         type: Boolean,
