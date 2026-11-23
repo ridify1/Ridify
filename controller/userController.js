@@ -176,6 +176,26 @@ exports.createUser = async (req, res, next) => {
             phoneNumber: user.phoneNumber
         };
 
+        try {
+    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+
+    if (admins.length) {
+        await notificationModel.insertMany(
+            admins.map((a) => ({
+                recipient: a._id,
+                sender: newUser._id,
+                title: 'New User Registration',
+                message: `${newUser.fullName} just registered.`,
+                type: 'user',
+                idType: 'userId',
+                id: newUser._id
+            }))
+        );
+    }
+} catch (notifyError) {
+    console.error('Failed to create registration notification:', notifyError.message);
+}
+
         res.status(201).json({
             message: 'User created successfully',
             data
@@ -711,7 +731,6 @@ exports.updateUser = async (req, res, next) => {
 
         const data = {};
 
-        // Validate the name only if it was sent
         if (req.body.fullName !== undefined) {
             const fullName = req.body.fullName.trim().replace(/\s+/g, ' ');
             const parts = fullName.split(' ');
@@ -733,19 +752,15 @@ console.log("File:", req.file);
                 data.image = result.secure_url;
                 data.imagePublicId = result.public_id;
 
-                // Remove the old image from Cloudinary
                 if (checkUser.imagePublicId) {
                     await cloudinary.uploader.destroy(checkUser.imagePublicId);
                 }
             } finally {
-                // Always clean up the temp file, even if the upload failed
                 if (fs.existsSync(req.file.path)) {
                     fs.unlinkSync(req.file.path);
                 }
             }
         }
-        console.log(req.file);
-console.log(req.file.path);
 
         if (Object.keys(data).length === 0) {
             return res.status(400).json({ message: 'Nothing to update' });
@@ -754,6 +769,16 @@ console.log(req.file.path);
         const updatedUser = await userModel
             .findByIdAndUpdate(id, data, { new: true })
             .select('-password');
+
+        await createNotification({
+    recipient: checkUser._id,
+    sender: req.user.id,
+    title: "Updated Profile",
+    message: `${req.user.fullName} updated their profile.`,
+    type: "user",
+    idType: "userId",
+    id: checkUser._id
+});
 
         return res.status(200).json({
             message: `${checkUser.role} updated successfully`,

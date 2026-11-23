@@ -249,13 +249,13 @@ router.get('/getEmployerKyc', authenticate, getEmployerKyc)
  *     tags:
  *       - Job
  *     summary: Post a new job
- *     description: Creates a job posting on behalf of the authenticated user. Only users with the hr, employer or jobagent role can post jobs. All fields are required. The poster is taken from the access token, not from the request body.
+ *     description: Creates a job posting on behalf of the authenticated user. Only users with the hr, employer or jobagent role can post jobs. All text fields are required, and one optional image can be uploaded to Cloudinary. The poster is taken from the access token, not from the request body. After the job is created, every job seeker receives a new job notification.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
@@ -285,6 +285,10 @@ router.get('/getEmployerKyc', authenticate, getEmployerKyc)
  *                 type: string
  *                 example: 3 to 5 years
  *                 description: The experience required for the job
+ *               image:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional image for the job posting (one file)
  *     responses:
  *       201:
  *         description: Job posted successfully
@@ -320,6 +324,10 @@ router.get('/getEmployerKyc', authenticate, getEmployerKyc)
  *                     experience:
  *                       type: string
  *                       example: 3 to 5 years
+ *                     image:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/postJob/job.jpg
+ *                       description: Only present when an image was uploaded
  *                     createdAt:
  *                       type: string
  *                       format: date-time
@@ -336,7 +344,7 @@ router.get('/getEmployerKyc', authenticate, getEmployerKyc)
  *         description: Internal server error
  */
 
-router.post('/postJob', authenticate, postJob);
+router.post('/postJob', authenticate, upload.single('image'), postJob);
 
 /**
  * @swagger

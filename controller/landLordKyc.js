@@ -55,14 +55,14 @@ if (!ALLOWED_ROLES.includes(checkRole.role)) {
         }
 
         const idFiles = req.files?.identification || [];
-const selfieFiles = req.files?.selfie || [];
+        const selfieFiles = req.files?.selfie || [];
 
-if (!idFiles.length || !selfieFiles.length) {
-    return next({
-        message: "Identification and selfie images are required",
-        statusCode: 400
-    });
-}
+        if (!idFiles.length || !selfieFiles.length) {
+            return next({
+                message: "Identification and selfie images are required",
+                statusCode: 400
+            });
+        }
 
 const uploadGroup = async (files) => {
     const urls = [];
@@ -497,7 +497,7 @@ exports.updatePropertyUpload = async (req, res, next) => {
                     recipient: a._id,
                     sender: id,
                     title: 'New KYC Submission',
-                    message: `${kyc.fullLegalName} submitted a new KYC application.`,
+                    message: `${kyc.fullLegalName} updated his property.`,
                     type: 'update',
                     idType: 'updateId',
                     id: propertyId
@@ -745,6 +745,14 @@ exports.changeStatus = async (req, res, next) => {
             });
         }
 
+    await createNotification({
+    recipient: property.landLordId,
+    sender: req.user.id,
+    title: "Property Status Changed",
+    message: `${req.user.fullName} updated the status of your property.`,
+    type: "property"
+});
+
         return res.status(200).json({
             message: 'status updated succesfully'
         })
@@ -843,6 +851,14 @@ exports.deleteProperty = async (req, res, next) => {
                 statusCode: 404
             });
         }
+
+    await createNotification({
+    recipient: property.landLordId,
+    sender: req.user.id,
+    title: "Property Deleted",
+    message: `${req.user.fullName} deleted your property.`,
+    type: "property"
+});
 
 
         res.status(200).json({
