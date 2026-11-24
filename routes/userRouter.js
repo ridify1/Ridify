@@ -1223,12 +1223,12 @@ router.get('/getArtisansByCategory', authenticate, getArtisansByCategory);
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: cityOrLocation
+ *         name: cityState
  *         required: true
  *         schema:
  *           type: string
  *           example: ikeja
- *         description: City or Location to search for
+ *         description: City or State to search for
  *       - in: query
  *         name: page
  *         required: false
