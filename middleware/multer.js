@@ -20,10 +20,10 @@ const fileFilter = (req, file, cb)=> {
     console.log('File: ',file);
     console.log('File Mimetype: ', file.mimetype);
     
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith("video/")) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith("video/") || file.mimetype === "application/pdf") {
         cb(null, true)
     } else{
-        cb(new Error("Only image and video files are allowed"))
+        cb(new Error("Only image, pdf and video files are allowed"))
     }
 }
 
