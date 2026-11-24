@@ -194,13 +194,16 @@ exports.getArtisansByCategory = async (req, res, next) => {
             return next({ message: 'Invalid User ID', statusCode: 400 });
         }
 
-        const categoryForJob = String(req.query.categoryForJob || '').trim();
+        const categoryForArtisan = String(req.query.categoryForArtisan || '').trim();
 
-        if (!categoryForJob) {
+        console.log("QUERY:", req.query);
+console.log("CATEGORY:", categoryForArtisan);
+
+        if (!categoryForArtisan) {
             return next({ message: 'Select one category', statusCode: 400 });
         }
 
-        if (!ARTISAN_CATEGORIES.includes(categoryForJob)) {
+        if (!ARTISAN_CATEGORIES.includes(categoryForArtisan)) {
             return next({
                 message: `Category must be one of: ${ARTISAN_CATEGORIES.join(', ')}`,
                 statusCode: 400
@@ -212,7 +215,7 @@ exports.getArtisansByCategory = async (req, res, next) => {
         const skip = (page - 1) * limit;
 
         const filter = {
-            categoryForJob,
+            categoryForArtisan,
             archive: { $ne: true },
             isDeleted: { $ne: true }
         };
