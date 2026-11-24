@@ -247,10 +247,10 @@ exports.getArtisansByLocation = async (req, res, next) => {
             return next({ message: 'Invalid User ID', statusCode: 400 });
         }
         
-        const cityOrState = String(req.query.cityOrState || '').trim().toLowerCase();
+        const cityOrLocation = String(req.query.cityOrLocation || '').trim().toLowerCase();
         
-        if (!cityOrState) {
-            return next({ message: 'Provide a city or a state', statusCode: 400 });
+        if (!cityOrLocation) {
+            return next({ message: 'Provide a city or a Location', statusCode: 400 });
         }
         
         const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -260,14 +260,14 @@ exports.getArtisansByLocation = async (req, res, next) => {
         const filter = {
             $or: [
                 {
-                    city: {
-                        $regex: cityOrState,
+                    cityOrLocation: {
+                        $regex: cityOrLocation,
                         $options: "i"
                     }
                 },
                 {
-                    state: {
-                        $regex: cityOrState,
+                    Location: {
+                        $regex: cityOrLocation,
                         $options: "i"
                     }
                 }
