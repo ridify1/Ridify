@@ -51,7 +51,7 @@ const postJobSchema = new mongoose.Schema({
         type: Date,
         default: null
     }
-}, {timeStamps: true})
+}, {timestamps: true})
 
 const postJob = mongoose.model('postJobs', postJobSchema);
 

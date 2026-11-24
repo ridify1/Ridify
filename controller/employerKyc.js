@@ -270,9 +270,14 @@ exports.postJob = async (req, res, next) => {
 
         const { imagePublicId: _omit, ...safeJob } = job.toObject();
 
+        const created = safeJob.createdAt
+
         return res.status(201).json({
             message: 'Job posted successfully',
-            data: safeJob
+            data: {
+                job: safeJob,
+                createdAt: safeJob.createdAt
+            }
         });
     } catch (error) {
         if (uploadedPublicId) {
