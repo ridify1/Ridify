@@ -294,6 +294,7 @@ exports.getAllJobs = async (req, res, next) => {
 
         const jobs = await postJobModel
             .find({ posterId: id })
+            .select("jobTitle aboutJob image imagePublicId")
             .sort({ createdAt: -1 })
             .lean();
 
@@ -325,6 +326,7 @@ exports.getJob = async (req, res, next) => {
         
         const job = await postJobModel
             .findOne({ _id: jobId, posterId: id })
+            .select("jobTitle aboutJob image imagePublicId")
             .lean();
 
         if (!job) {
@@ -738,7 +740,7 @@ exports.getSingleApplication = async (req, res, next) => {
         const isPoster = job && String(job.posterId) === String(id);
 
         if (!isApplicant && !isPoster) {
-            return next({ message: 'Application not found', statusCode: 404 });
+            return next({ message: 'Application not found', statusCode: 200 });
         }
 
         return res.status(200).json({
