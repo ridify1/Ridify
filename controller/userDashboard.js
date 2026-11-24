@@ -258,10 +258,20 @@ exports.getArtisansByLocation = async (req, res, next) => {
         const skip = (page - 1) * limit;
         
         const filter = {
-            cityState: {
-                $regex: cityState,
-                $options: "i"
-            }
+            $or: [
+                {
+                    cityState: {
+                        $regex: `^${cityState}$`,
+                        $options: "i"
+                    }
+                },
+                {
+                    area: {
+                        $regex: `^${cityState}$`,
+                        $options: "i"
+                    }
+                }
+            ],
         };
         
         const [artisans, total] = await Promise.all([
@@ -330,7 +340,6 @@ exports.getPropertiesByLocationAndCategory = async (req, res, next) => {
                     }
                 }
             ],
-            archive: { $ne: true },
             isDeleted: { $ne: true }
         };
 
