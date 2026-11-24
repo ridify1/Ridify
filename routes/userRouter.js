@@ -1,4 +1,4 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout } = require('../controller/userController');
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout, appleLogin } = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
 const { REFRESH_TTL_SECONDS } = require('../utils/token');
 const { registerValidator, loginValidator } = require('../middleware/validator')
@@ -14,6 +14,81 @@ const router = require('express').Router();
  *   name: User
  *   description: User management and authentication
  */
+
+/**
+ * @swagger
+ * /api/v1/user/apple:
+ *   post:
+ *     tags:
+ *       - User
+ *     summary: Sign in or sign up with Apple
+ *     description: Verifies the identity token that Apple returned to the app, then signs the user in. If no account exists, one is created automatically with the email already marked as verified. If an account with the same verified Apple email exists, the Apple identity is linked to it. Locked accounts cannot sign in. On success, an access token is returned in the body and a refresh token is set in an httpOnly cookie. This route is public and does not need an access token.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - identityToken
+ *             properties:
+ *               identityToken:
+ *                 type: string
+ *                 example: eyJraWQiOiJXNldjT0tCIiwiYWxnIjoiUlMyNTYifQ...
+ *                 description: The identity token (JWT) returned by Apple after the user signs in
+ *               fullName:
+ *                 type: string
+ *                 example: Jane Doe
+ *                 description: Apple only provides the name on the first sign-in, so send it when you have it. Defaults to Apple User for new accounts.
+ *               nonce:
+ *                 type: string
+ *                 example: 8f3a2c91d7e04b6a
+ *                 description: Optional. If the token was requested with a nonce, send the same value so the server can check it
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Login successful
+ *                 accessToken:
+ *                   type: string
+ *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *                   description: JWT access token that expires in 15 minutes. The refresh token is set in an httpOnly cookie.
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     email:
+ *                       type: string
+ *                       example: jane.doe@example.com
+ *                     role:
+ *                       type: string
+ *                       example: user
+ *                       description: May be empty for a new account until the user chooses what they are looking for
+ *                     searchingFor:
+ *                       type: string
+ *                       example: findAHome
+ *                       description: Empty for a new account until the user chooses
+ *       400:
+ *         description: identityToken is missing
+ *       401:
+ *         description: Invalid or expired Apple token
+ *       403:
+ *         description: Account is temporarily locked
+ *       500:
+ *         description: Internal server error
+ */
+router.post('/apple', appleLogin);
 
 /**
  * @swagger
