@@ -411,7 +411,7 @@ router.get('/allJobs', authenticate, getAllJobs);
 
 /**
  * @swagger
- * /api/v1/job/oneJob/{jobId}:
+ * /api/v1/hr/oneJob/{jobId}:
  *   get:
  *     tags:
  *       - Job

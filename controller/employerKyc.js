@@ -331,9 +331,11 @@ exports.getJob = async (req, res, next) => {
             return next({ message: 'Job not found', statusCode: 404 });
         }
 
+        const img = job?.image;
+
         return res.status(200).json({
             message: 'Job retrieved successfully',
-            data: job
+            data: [job, img]
         });
     } catch (error) {
         return next({ message: error.message, statusCode: 500 });
