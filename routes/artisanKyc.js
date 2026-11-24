@@ -470,6 +470,135 @@ router.post('/myservices', authenticate, upload.fields([
         }
     ]), myServices)
 
+/**
+ * @swagger
+ * /api/v1/artisan/getServices:
+ *   get:
+ *     tags:
+ *       - Artisan Service
+ *     summary: Get the artisan's services
+ *     description: Returns all service listings that belong to the authenticated artisan, newest first. The artisan is identified from the access token, so a user only ever sees their own services. If there are none, an empty result is returned.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Services retrieved successfully, or no services to display.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Services retrieved successfully
+ *
+ *                 count:
+ *                   type: integer
+ *                   example: 2
+ *
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 672ac91f98ab34e1f4d12345
+ *
+ *                       artisanId:
+ *                         type: string
+ *                         example: 6ab0f2ffa675b9e38dc41623
+ *
+ *                       category:
+ *                         type: string
+ *                         example: Plumber
+ *
+ *                       service:
+ *                         type: string
+ *                         example: Residential plumbing
+ *
+ *                       engagement:
+ *                         type: string
+ *                         example: full-time
+ *
+ *                       description:
+ *                         type: string
+ *                         example: Installation and repair of plumbing systems
+ *
+ *                       area:
+ *                         type: string
+ *                         example: Ikeja
+ *
+ *                       cityState:
+ *                         type: string
+ *                         example: Ikeja, Lagos
+ *
+ *                       availability:
+ *                         type: string
+ *                         example: available
+ *
+ *                       rate:
+ *                         type: number
+ *                         example: 15000
+ *
+ *                       rateType:
+ *                         type: string
+ *                         example: perJob
+ *
+ *                       whatsIncluded:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - Materials
+ *                           - Transport
+ *                           - Cleanup
+ *
+ *                       photos:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/image/upload/Ridify/myService/work1.jpg
+ *
+ *                       photosPublicIds:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - Ridify/myService/work1
+ *
+ *                       video:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - https://res.cloudinary.com/demo/video/upload/Ridify/myService/work.mp4
+ *
+ *                       videoPublicId:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example:
+ *                           - Ridify/myService/work
+ *
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-19T10:30:00.000Z
+ *
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: 2026-11-19T10:30:00.000Z
+ *
+ *       401:
+ *         description: User is not authenticated or token is invalid.
+ *
+ *       500:
+ *         description: Internal server error.
+ */
+
 router.get('/getServices', authenticate, getServices)
 
 /**
