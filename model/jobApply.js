@@ -8,7 +8,7 @@ const applyJobSchema = new mongoose.Schema({
     },
     jobId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'postJob',
+        ref: 'postJobs',
         required: true
     },
     fullname: {
