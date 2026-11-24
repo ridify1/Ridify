@@ -59,6 +59,16 @@ const userSchema = new mongoose.Schema({
         enum: ['findAHome', 'findWork' ],
         default: null
     },
+    appleId: { 
+        type: String, 
+        unique: true, 
+        sparse: true 
+    },
+    authProvider: { 
+        type: String, 
+        enum: ['local', 'apple'], 
+        default: 'local' 
+    },
     image: {
         type: String,
         allowNull: false

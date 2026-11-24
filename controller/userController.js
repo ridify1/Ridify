@@ -19,7 +19,8 @@ const redisClient = require("../config/redis");
 const cloudinary = require("../config/cloudinary");
 const fs = require("fs");
 const passport = require("passport");
-const crypto = require("crypto")
+const crypto = require("crypto");
+const appleSignin = require('apple-signin-auth');
 const {
     generateAccessToken,
     generateRefreshToken,
@@ -32,6 +33,93 @@ const generateOtp = () => otpGenerator.generate(6, {
       lowerCaseAlphabets: false,
       specialChars: false
 });
+
+exports.appleLogin = async (req, res, next) => {
+    try {
+        const identityToken = String(req.body?.identityToken || '').trim();
+        const fullName = String(req.body?.fullName || '').trim();
+        const nonce = req.body?.nonce ? String(req.body.nonce) : undefined;
+
+        if (!identityToken) {
+            return next({ message: 'identityToken is required', statusCode: 400 });
+        }
+
+        let payload;
+        try {
+            payload = await appleSignin.verifyIdToken(identityToken, {
+                audience: process.env.APPLE_CLIENT_ID,
+                nonce,
+                ignoreExpiration: false
+            });
+        } catch (err) {
+            return next({ message: 'Invalid Apple token', statusCode: 401 });
+        }
+
+        const appleId = payload.sub;
+        const email = payload.email ? payload.email.toLowerCase() : undefined;
+        const emailVerified = payload.email_verified === true || payload.email_verified === 'true';
+
+        let user = await userModel.findOne({ appleId });
+
+        if (!user && email && emailVerified) {
+            user = await userModel.findOne({ email });
+            if (user) {
+                user.appleId = appleId;
+                user.isVerified = true;
+                await user.save();
+            }
+        }
+
+        if (!user) {
+            try {
+                user = await userModel.create({
+                    appleId,
+                    email,
+                    fullName: fullName || 'Apple User',
+                    isVerified: true,
+                    authProvider: 'apple'
+                });
+            } catch (createError) {
+                if (createError.code !== 11000) throw createError;
+                user = await userModel.findOne({ appleId });   
+            }
+        }
+
+        if (user.lockUntil && user.lockUntil > Date.now()) {
+            const minutes = Math.ceil((user.lockUntil - Date.now()) / 60000);
+            return next({
+                message: `Account locked. Try again in ${minutes} minute(s)`,
+                statusCode: 403
+            });
+        }
+
+        const accessToken = generateAccessToken(user);
+        const refreshToken = generateRefreshToken(user);
+
+        await redisClient.set(`refresh_${user._id}`, refreshToken, { EX: REFRESH_TTL_SECONDS });
+
+        res.cookie('refreshToken', refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: REFRESH_TTL_SECONDS * 1000
+        });
+
+        return res.status(200).json({
+            message: 'Login successful',
+            accessToken,
+            data: {
+                _id: user._id,
+                fullName: user.fullName,
+                email: user.email,
+                role: user.role,
+                searchingFor: user.searchingFor
+            }
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
+    }
+};
 
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 console.log('redirectUrl:', process.env.userCallback)
