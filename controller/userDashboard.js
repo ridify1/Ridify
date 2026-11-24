@@ -42,9 +42,7 @@ exports.dashboard = async (req, res, next) => {
                     message: 'Home dashboard retrieved successfully',
                     type: 'findAHome',
                     count: properties.length,
-                    data: properties,
-                    jobs: jobs,
-                    artisans: artisans
+                    data: {properties,jobs, artisans}
                 });
             }
 
@@ -56,9 +54,7 @@ exports.dashboard = async (req, res, next) => {
                     message: 'Work dashboard retrieved successfully',
                     type: 'findWork',
                     count: jobs.length,
-                    data: jobs, 
-                    artisans: artisans,
-                    properties: properties
+                    data: {jobs, artisans, properties}
                 });
             }
 
