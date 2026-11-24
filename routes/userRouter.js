@@ -1096,7 +1096,7 @@ router.get('/getByLocation', authenticate, getPropertiesByLocation);
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: categoryForJob
+ *         name: categoryForArtisan
  *         required: true
  *         schema:
  *           type: string
