@@ -1,7 +1,7 @@
 const express = require('express');
 const upload = require('../middleware/multer');
 const { authenticate } = require('../middleware/auth');
-const { employerKyc, getEmployerKyc, postJob, getAllJobs, changeStatus, getJob, deleteJob, applyJob, getJobsByApplicant, getJobsByJobId, getSingleApplication } = require('../controller/employerKyc');
+const { employerKyc, getEmployerKyc, postJob, getAllJobs, changeStatus, getJob, deleteJob, applyJob, getJobsByApplicant, getJobByJobId, getSingleApplication } = require('../controller/employerKyc');
 const router = express.Router();
 
 /**
