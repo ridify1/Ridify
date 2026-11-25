@@ -3,6 +3,7 @@ require('dotenv').config();
 const PORT = process.env.PORT || 3000;
 const userRouter = require('./routes/userRouter')
 const app = express();
+const http = require("http");
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const cors = require('cors');
@@ -15,10 +16,18 @@ const inspectionRouter = require('./routes/inspection')
 const savedRouter = require('./routes/savedProperty')
 const cookieParser = require('cookie-parser');
 const redisClient = require('./config/redis');
+const notificationRouter = require('./routes/notification');
+
+const server = http.createServer(app);
+
 
 app.use(express.json());
 app.use(cookieParser());
 app.use(cors({origin: '*'}));
+
+const { initializeSocket } = require("./socket/socket");
+
+initializeSocket(server);
 
 const swaggerDefinition = {
   openapi: '3.0.0',  
@@ -91,6 +100,8 @@ app.use('/api/v1/inspection', inspectionRouter)
 
 app.use('/api/v1/saved', savedRouter)
 
+app.use('/api/v1/notification', notificationRouter);
+
 app.use((req, res, next) => {
     next({
         message: `route ${req.originalUrl} and ${req.method} not found`,
@@ -119,7 +130,7 @@ mongoose.connect(process.env.MONGODB_URI).then(async () => {
     console.log('Connected to Database');
     await redisClient.connect();
     redisClient.ping().then(console.log).catch(console.error);
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`Server is listening to Port: ${PORT}`);
     });
 }).catch((error) => {

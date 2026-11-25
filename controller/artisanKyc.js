@@ -4,6 +4,7 @@ const userModel = require('../model/user')
 const cloudinary = require('../config/cloudinary')
 const fs = require('fs')
 const mongoose = require('mongoose')
+const { createNotification } = require("../services/notificationService");
 
 exports.artisanKyc = async (req, res, next) => {
     try {
@@ -106,21 +107,31 @@ const selfieUpload = await uploadGroup(selfieFiles);
         const kyc = await kycModel.create(artisanData);
 
         try {
-                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                    if (admins.length) {
-                        await notificationModel.insertMany(admins.map((a) => ({
-                            recipient: a._id,
-                            sender: id,
-                            title: 'New KYC Submission',
-                            message: `${fullLegalName} submitted a new KYC application.`,
-                            type: 'kyc',
-                            idType: 'kycId',
-                            id: kyc._id
-                        })));
-                    }
-                } catch (notifyError) {
-                    console.error('Failed to create KYC notification:', notifyError.message);
-                }
+            const admins = await userModel
+                .find({ role: "admin" })
+                .select("_id")
+                .lean();
+
+            await Promise.all(
+                admins.map(admin =>
+                    createNotification({
+                        recipient: admin._id,
+                        sender: id,
+                        title: "New KYC Submission",
+                        message: `${fullLegalName} submitted a new KYC application.`,
+                        type: "kyc",
+                        idType: "kycId",
+                        id: kyc._id
+                    })
+                )
+            );
+
+        } catch (notifyError) {
+            console.error(
+                "Failed to create KYC notification:",
+                notifyError.message
+            );
+        }
 
         res.status(201).json({
             message: "Artisan KYC submitted successfully",
