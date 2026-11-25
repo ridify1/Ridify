@@ -6,6 +6,10 @@ const jobAgencyKycSchema = new mongoose.Schema({
         ref: 'users',
         required: true
     },
+    postedBy: {
+    type: String,
+    enum: ["employer", "agency"]
+    },
     fullLegalName: {
         type: String,
         required: true,

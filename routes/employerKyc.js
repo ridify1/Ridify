@@ -881,7 +881,7 @@ router.get('/allJobsByApplicant', authenticate, getJobsByApplicant);
  *         description: Internal server error
  */
 
-router.get('/getByJobId/:jobId', authenticate, getJobsByJobId);
+router.get('/getByJobId/:jobId', authenticate, getJobByJobId);
 
 /**
  * @swagger

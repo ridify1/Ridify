@@ -43,6 +43,13 @@ const notificationSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         refPath: "idType"
     },
+    referenceId: {
+    type: mongoose.Schema.Types.ObjectId
+},
+
+referenceType: {
+    type: String
+},
     isRead: {
         type: Boolean,
         default: false

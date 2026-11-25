@@ -4,10 +4,13 @@ const userModel = require('../model/user')
 const postJobModel = require('../model/postJob')
 const applyJobModel = require('../model/jobApply')
 const notificationModel = require('../model/notification')
+const employerModel = require('../model/employerKyc')
+const agencyModel = require('../model/jobAgencyKyc')
 const cloudinary = require('../config/cloudinary')
 const fs = require('fs')
 const mongoose = require('mongoose')
 const validator = require('validator');
+const { createNotification } = require("../services/notificationService");
 
 exports.employerKyc = async (req, res, next) => {
     try {
@@ -115,8 +118,8 @@ const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
 
         try {
                     const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                    if (admins.length) {
-                        await notificationModel.insertMany(admins.map((a) => ({
+                    await Promise.all(
+                        admins.map((a) => createNotification({
                             recipient: a._id,
                             sender: id,
                             title: 'New KYC Submission',
@@ -124,8 +127,9 @@ const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
                             type: 'kyc',
                             idType: 'kycId',
                             id: kyc._id
-                        })));
-                    }
+                        })
+                    )
+                    )
                 } catch (notifyError) {
                     console.error('Failed to create KYC notification:', notifyError.message);
                 }
@@ -250,9 +254,9 @@ exports.postJob = async (req, res, next) => {
         try {
             const jobSeekers = await userModel.find({ role: 'jobSeeker' }).select('_id').lean();
 
-            if (jobSeekers.length) {
-                await notificationModel.insertMany(
-                    jobSeekers.map((seeker) => ({
+            await Promise.all(
+                    jobSeekers.map((seeker) => 
+                        createNotification({
                         recipient: seeker._id,
                         sender: id,
                         title: 'New Job Alert',
@@ -262,8 +266,7 @@ exports.postJob = async (req, res, next) => {
                         id: job._id
                     })),
                     { ordered: false }
-                );
-            }
+            )
         } catch (notifyError) {
             console.error('Failed to create job notifications:', notifyError.message);
         }
@@ -340,9 +343,21 @@ exports.getJob = async (req, res, next) => {
 
         const img = job?.image;
 
+        const applicants = await applyJobModel
+            .find({ jobId })
+            .select('-cvPublicId -coverLetterPublicId')
+            .sort({ createdAt: -1 })
+            .lean();
+
         return res.status(200).json({
-            message: 'Job retrieved successfully',
-            data: [job, img]
+            message: applicants.length === 0
+                ? 'No applicants for this job'
+                : 'Applicants retrieved successfully',
+            count: applicants.length,
+            data: {
+                job,
+                applicants
+            }
         });
     } catch (error) {
         return next({ message: error.message, statusCode: 500 });
@@ -394,8 +409,9 @@ exports.changeStatus = async (req, res, next) => {
 
         try {
                     const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                    if (admins.length) {
-                        await notificationModel.insertMany(admins.map((a) => ({
+                    await Promise.all(
+                        admins.map((a) => 
+                            createNotification({
                             recipient: a._id,
                             sender: id,
                             title: 'New KYC Submission',
@@ -403,8 +419,9 @@ exports.changeStatus = async (req, res, next) => {
                             type: 'job',
                             idType: 'jobId',
                             id: job._id
-                        })));
-                    }
+                        })
+                    )
+                    )
                 } catch (notifyError) {
                     console.error('Failed to create KYC notification:', notifyError.message);
                 }
@@ -447,8 +464,9 @@ exports.deleteJob = async (req, res, next) => {
 
         try {
                             const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                            if (admins.length) {
-                                await notificationModel.deleteMany(admins.map((a) => ({
+                            await Promise.all(
+                                admins.map((a) => 
+                                    createNotification({
                                     recipient: a._id,
                                     sender: id,
                                     title: 'New Job deletion',
@@ -456,8 +474,8 @@ exports.deleteJob = async (req, res, next) => {
                                     type: 'job',
                                     idType: 'jobId',
                                     id: deletedJob._id
-                                })));
-                            }
+                                }))
+                            )
                         } catch (notifyError) {
                             console.error('Failed to create Job notification:', notifyError.message);
                         }
@@ -672,7 +690,7 @@ exports.getJobsByApplicant = async (req, res, next) => {
     }
 }
 
-exports.getJobsByJobId = async (req, res, next) => {
+exports.getJobByJobId = async (req, res, next) => {
     try {
         const { id } = req.user;
 
@@ -687,31 +705,39 @@ exports.getJobsByJobId = async (req, res, next) => {
         }
 
         const job = await postJobModel
-            .findOne({ _id: jobId, posterId: id })
-            .select('_id jobTitle')
+            .findOne({ _id: jobId, isDeleted: { $ne: true }})
+            .select("jobTitle aboutJob description qualification experience status image imagePublicId")
             .lean();
 
-        if (!job) {
-            return next({ message: 'Job not found or not posted by you', statusCode: 404 });
-        }
-
-        const applicants = await applyJobModel
-            .find({ jobId })
-            .select('-cvPublicId -coverLetterPublicId')
-            .sort({ createdAt: -1 })
+            if (!job) {
+                return next({ message: 'Job not found', statusCode: 404 });
+            }
+        
+        const employer = await employerModel
+            .findById(job.posterId)
+            .select("fullLegalName jobTitle companyName")
             .lean();
+
+        const agency = employer
+            ? null
+            : await agencyModel
+                .findById(job.posterId)
+                .select("fullLegalName jobTitle companyName")
+                .lean();
+
+        const poster = employer || agency;
 
         return res.status(200).json({
-            message: applicants.length === 0
-                ? 'No applicants for this job'
-                : 'Applicants retrieved successfully',
-            count: applicants.length,
-            data: applicants
+            message: "Job retrieved successfully",
+            data: {
+                job,
+                poster
+            }
         });
-    } catch (error) {
-        return next({ message: error.message, statusCode: 500 });
-    }
-};
+            } catch (error) {
+                return next({ message: error.message, statusCode: 500 });
+            }
+        };
 
 exports.getSingleApplication = async (req, res, next) => {
     try {
