@@ -767,7 +767,7 @@ exports.getSingleApplication = async (req, res, next) => {
         }
 
         const application = await applyJobModel
-            .findById(applicationId)
+            .findById({_id: applicationId})
             .select('-cvPublicId -coverLetterPublicId')
             .lean();
 
