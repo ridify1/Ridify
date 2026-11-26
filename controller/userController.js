@@ -130,7 +130,6 @@ passport.use(
       clientID: process.env.clientId,
       clientSecret: process.env.clientSecret,
       callbackURL: process.env.userCallback,
-      scope: ["profile", "email"],
       passReqToCallback: true,
     },
     async function (request, googleAccessToken, googleRefreshToken, profile, done) {
@@ -143,26 +142,28 @@ passport.use(
 
         let user = await userModel.findOne({ email });
         let isNewUser = false;
+        let generatedPassword;
 
         if (!user) {
-            user= await userModel.create({
+
+            generatedPassword = crypto.randomBytes(32).toString("hex");
+
+            user = await userModel.create({
                 fullName: profile.displayName,
                 email,
+                password: generatedPassword,
                 isVerified: true,
-                password: crypto.randomBytes(32).toString("hex")
-            })
+            });
+
             isNewUser = true;
-        } else if (!user.isVerified) {
-            user.isVerified = true;
-            await user.save();
         }
 
         if (isNewUser) {
             try {
                 const emailOptions = {
-                    email: mother.email,
+                    email: user.email,
                     subject: "Welcome to Ridify",
-                    html: googlechangePasswordTemplate(user.fullName, password),
+                    html: googlechangePasswordTemplate(user.fullName, generatedPassword),
                     };
 
                 if (process.env.NODE_ENV === "production") {
@@ -178,11 +179,15 @@ passport.use(
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        await redisClient.set(`refresh_${user._id}`,refreshToken, {
-            EX: REFRESH_TTL_SECONDS,
-        });
+        await redisClient.set(
+        `refreshToken:${user._id}`,
+        refreshToken,
+        {
+            EX: REFRESH_TTL_SECONDS
+        }
+    );
 
-        return done(null, { accessToken, refreshToken, });
+        return done(null, { user, accessToken, refreshToken, });
       }catch(error){
         return done(error)
       }
@@ -878,46 +883,42 @@ console.log("File:", req.file);
 };
 
 exports.getUser = async (req, res, next) => {
-    try{
-        const { id} = req.user;
+    try {
+        const { id } = req.user;
+        const { userId } = req.params;
 
-        if (!id) {
-            return res.status(401).json({
-                message: 'Unauthorised'
-            })
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'Unauthorised', statusCode: 401 });
         }
 
-        const isAdmin = req.user.role === 'admin'
-        const isOwner = req.user._id === req.params.id
-
-        if (!isAdmin && !isOwner) {
-        return next({
-            message: 'Access denied',
-            statusCode: 403
-        })
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return next({ message: 'Invalid user ID', statusCode: 400 });
         }
 
-        const checkUser = await userModel.findById(id);
+        const isOwner = String(id) === String(userId);
 
-        if (!checkUser) {
-            return res.status(404).json({
-                message: 'User not found'
-            })
+        if (!isOwner) {
+            const requester = await userModel.findById(id).select('role').lean();
+            if (!requester || requester.role !== 'admin') {
+                return next({ message: 'Access denied', statusCode: 403 });
+            }
         }
 
-        const info = {"fullname": checkUser.fullName, "email": checkUser.email, "phoneNumber": checkUser.phoneNumber, "role": checkUser.role}
-        const img = checkUser?.image;
+        const user = await userModel
+            .findById(userId)
+            .select('fullName email phoneNumber role image searchingFor')
+            .lean();
 
-        res.status(200).json({
-            message: "Users profile retrieved successfully",
-            info,
-            img
-        })
-    }catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
+        if (!user) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
+
+        return res.status(200).json({
+            message: 'User profile retrieved successfully',
+            data: user
+        });
+    } catch (error) {
+        return next({ message: error.message, statusCode: 500 });
     }
 };
 
@@ -935,4 +936,45 @@ exports.logout = async (req, res, next) => {
     } catch (error) {
         return next({ message: error.message, statusCode: 500 });
     }
+};
+
+exports.getAuthenticatedUser = async (req, res, next) => {
+
+    try {
+
+        const { id } = req.user;
+
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({
+                message: "Unauthorized",
+                statusCode: 401
+            });
+        }
+
+        const user = await userModel
+            .findById(id)
+            .select('fullName email phoneNumber role searchingFor roleForHome roleForJob categoryForArtisan isVerified createdAt')
+            .lean();
+
+        if (!user) {
+            return next({
+                message: "User not found",
+                statusCode: 404
+            });
+        }
+
+        return res.status(200).json({
+            message: "User retrieved successfully",
+            data: user
+        });
+
+    } catch (error) {
+
+        return next({
+            message: error.message,
+            statusCode: 500
+        });
+
+    }
+
 };
