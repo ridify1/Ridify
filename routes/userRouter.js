@@ -98,12 +98,18 @@ router.post('/apple', appleLogin);
  *     tags:
  *       - User
  *     summary: Start Google sign-in
- *     description: Redirects the user to Google's consent screen to sign in with their Google account. After they approve, Google sends them to the callback route. New users get an account created automatically, and existing users are signed in. This route must be opened in a browser, because Swagger UI cannot follow the redirect to Google.
+ *     description: Starts the Google sign-in flow. The route redirects the user's browser to Google's consent screen, asking for access to their profile and email. After the user approves, Google redirects to the callback route. This route is public and is meant to be opened in a browser, not called with fetch or axios.
  *     responses:
  *       302:
- *         description: Redirects to the Google sign-in and consent screen
+ *         description: Redirects to Google's consent screen (accounts.google.com).
+ *         headers:
+ *           Location:
+ *             description: The Google authorization URL, which includes the client id, the callback URL and the requested scopes
+ *             schema:
+ *               type: string
+ *               example: https://accounts.google.com/o/oauth2/v2/auth?response_type=code&redirect_uri=...&scope=profile%20email&client_id=...
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  */
 
 router.get('/google', passport.authenticate('google-user', {
@@ -119,33 +125,37 @@ router.get('/google', passport.authenticate('google-user', {
  *     tags:
  *       - User
  *     summary: Google sign-in callback
- *     description: Called by Google after the user approves sign-in. Verifies the Google account, creates a new user if none exists (sending a welcome email), and returns an access token. A refresh token is stored in an httpOnly cookie. Google accounts without a verified email are rejected. This route is called by Google with a code parameter and is not meant to be called directly.
+ *     description: Google redirects the user's browser here after they approve sign-in. This route is not called directly by the client. It finds or creates the user from their verified Google email, sets the refreshToken cookie, and redirects to the mobile app deep link with the access token. New users get a welcome email. If authentication fails, it redirects to the same deep link with an error message.
  *     parameters:
  *       - in: query
  *         name: code
  *         required: true
  *         schema:
  *           type: string
- *           example: 4/0AfJohXn8example
- *         description: The authorization code that Google sends to this route
+ *           example: 4/0AX4XfWh...
+ *         description: Authorization code sent by Google. Do not set this manually.
+ *       - in: query
+ *         name: scope
+ *         required: false
+ *         schema:
+ *           type: string
+ *           example: email profile
+ *         description: Scopes granted by the user, sent by Google.
  *     responses:
- *       200:
- *         description: Login successful. The refresh token is set in an httpOnly cookie named refreshToken.
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                   example: Login Successful
- *                 token:
- *                   type: string
- *                   example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
  *       302:
- *         description: Redirects to /api/v1/user/loginfailed if Google sign-in fails or the Google email is not verified
+ *         description: Redirects to the mobile app. On success the Location is ridify://google-auth?token=<accessToken>. On failure the Location is ridify://google-auth?error=Google%20authentication%20failed.
+ *         headers:
+ *           Location:
+ *             description: The mobile app deep link, taken from MOBILE_APP_REDIRECT
+ *             schema:
+ *               type: string
+ *               example: ridify://google-auth?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+ *           Set-Cookie:
+ *             description: refreshToken cookie (httpOnly, sameSite strict, secure in production). Only set on success.
+ *             schema:
+ *               type: string
  *       500:
- *         description: Internal server error
+ *         description: Internal server error.
  */
 
 router.get('/google/callback',
@@ -173,18 +183,6 @@ router.get('/google/callback',
         // res.status(200).json({ message: 'Login Successful', token: accessToken})
     }
 )
-
-// router.get("/loginfailed", (req, res) => {
-
-//     const APP_URL =
-//         process.env.MOBILE_APP_REDIRECT ||
-//         "ridify://google-auth";
-
-//     return res.redirect(
-//         `${APP_URL}?error=${encodeURIComponent("Google authentication failed")}`
-//     );
-
-// });
 
 /**
  * @swagger

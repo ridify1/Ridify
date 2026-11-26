@@ -180,7 +180,7 @@ passport.use(
         const refreshToken = generateRefreshToken(user);
 
         await redisClient.set(
-        `refreshToken:${user._id}`,
+        `refresh_${user._id}`,
         refreshToken,
         {
             EX: REFRESH_TTL_SECONDS
