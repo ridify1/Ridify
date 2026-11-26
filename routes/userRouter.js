@@ -1,5 +1,6 @@
-const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout, appleLogin } = require('../controller/userController');
+const { createUser, verifyEmail, resendOtp, forgotPassword, resetPassword, login, changePassword, selectRole, updateUser, getUser, WhatAreYouLOokingFor, refresh, logout, appleLogin, getAuthenticatedUser } = require('../controller/userController');
 const { authenticate } = require('../middleware/auth');
+require('dotenv').config;
 const { REFRESH_TTL_SECONDS } = require('../utils/token');
 const { registerValidator, loginValidator } = require('../middleware/validator')
 const upload = require('../middleware/multer');
@@ -108,7 +109,8 @@ router.post('/apple', appleLogin);
 router.get('/google', passport.authenticate('google-user', {
     scope: ['profile', 'email'],
     session: false
-}));
+}));  
+    
 
 /**
  * @swagger
@@ -149,21 +151,40 @@ router.get('/google', passport.authenticate('google-user', {
 router.get('/google/callback',
     passport.authenticate('google-user', {
         session: false,
-        failureRedirect: '/api/v1/user/loginfailed'
+        failureRedirect: `${process.env.MOBILE_APP_REDIRECT || "ridify://google-auth"}?error=${encodeURIComponent("Google authentication failed")}`
     }),
     (req,res) => {
-        const { accessToken, refreshToken } = req.user;
+        const { user, accessToken, refreshToken } = req.user;
 
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.Node_ENV === 'production',
+            secure: process.env.NODE_ENV === "production",
             sameSite: 'strict',
             maxAge: REFRESH_TTL_SECONDS * 1000
         });
 
-        res.status(200).json({ message: 'Login Successful', token: accessToken})
+        const APP_URL =
+            process.env.MOBILE_APP_REDIRECT || "ridify://google-auth";
+
+        return res.redirect(
+            `${APP_URL}?token=${encodeURIComponent(accessToken)}`
+        );
+
+        // res.status(200).json({ message: 'Login Successful', token: accessToken})
     }
 )
+
+// router.get("/loginfailed", (req, res) => {
+
+//     const APP_URL =
+//         process.env.MOBILE_APP_REDIRECT ||
+//         "ridify://google-auth";
+
+//     return res.redirect(
+//         `${APP_URL}?error=${encodeURIComponent("Google authentication failed")}`
+//     );
+
+// });
 
 /**
  * @swagger
@@ -690,7 +711,7 @@ router.put('/updateUser', authenticate, upload.single('image'), updateUser);
 
 /**
  * @swagger
- * /api/v1/user/getUser:
+ * /api/v1/user/getUser/{userId}::
  *   get:
  *     tags:
  *       - User
@@ -698,6 +719,14 @@ router.put('/updateUser', authenticate, upload.single('image'), updateUser);
  *     description: Retrieves the authenticated user's profile information
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: jobId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           example: 6ab6a8b9a675b9e38dc41c00
+ *         description: The id of the job whose applicants should be returned
  *     responses:
  *       200:
  *         description: Users profile retrieved successfully
@@ -732,7 +761,7 @@ router.put('/updateUser', authenticate, upload.single('image'), updateUser);
  *         description: Internal server error
  */
 
-router.get('/getUser', authenticate, getUser)
+router.get('/getUser/:userId', authenticate, getUser)
 
 /**
  * @swagger
@@ -1521,5 +1550,76 @@ router.get('/getArtisanByLocation', authenticate, getArtisansByLocation);
  *         description: Internal server error
  */
 router.get('/getByCategoryAndLocation', authenticate, getPropertiesByLocationAndCategory);
+
+/**
+ * @swagger
+ * /api/v1/user/me:
+ *   get:
+ *     tags:
+ *       - User
+ *     summary: Get the authenticated user
+ *     description: Returns the profile of the user identified by the access token. The password is never included.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: User retrieved successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6ab0f2ffa675b9e38dc41623
+ *                     fullName:
+ *                       type: string
+ *                       example: Jane Doe
+ *                     email:
+ *                       type: string
+ *                       example: jane.doe@example.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "8012345678"
+ *                     role:
+ *                       type: string
+ *                       example: landlord
+ *                     searchingFor:
+ *                       type: string
+ *                       example: findAHome
+ *                     roleForHome:
+ *                       type: string
+ *                       nullable: true
+ *                       example: landlord
+ *                     roleForJob:
+ *                       type: string
+ *                       nullable: true
+ *                       example: null
+ *                     categoryForArtisan:
+ *                       type: string
+ *                       nullable: true
+ *                       example: null
+ *                     isVerified:
+ *                       type: boolean
+ *                       example: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: 2026-10-20T09:30:00.000Z
+ *       401:
+ *         description: User not authenticated or token is missing or invalid
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
+ */
+
+router.get("/me",  authenticate, getAuthenticatedUser);
 
 module.exports = router

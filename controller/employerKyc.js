@@ -252,21 +252,26 @@ exports.postJob = async (req, res, next) => {
         uploadedPublicId = null; 
 
         try {
-            const jobSeekers = await userModel.find({ role: 'jobSeeker' }).select('_id').lean();
+            const recipients = await userModel
+            .find({
+                role: { $in: ["jobSeeker", "admin"] }
+            })
+            .select("_id")
+            .lean();
 
-            await Promise.all(
-                    jobSeekers.map((seeker) => 
-                        createNotification({
-                        recipient: seeker._id,
-                        sender: id,
-                        title: 'New Job Alert',
-                        message: `${poster.fullName} posted a new job: ${jobTitle}`,
-                        type: 'job',
-                        idType: 'jobId',
-                        id: job._id
-                    })),
-                    { ordered: false }
+        await Promise.all(
+            recipients.map((user) =>
+                createNotification({
+                    recipient: user._id,
+                    sender: id,
+                    title: "New Job Alert",
+                    message: `${poster.fullName} posted a new job: ${jobTitle}`,
+                    type: "job",
+                    idType: "jobId",
+                    id: job._id
+                })
             )
+        );
         } catch (notifyError) {
             console.error('Failed to create job notifications:', notifyError.message);
         }
@@ -278,8 +283,7 @@ exports.postJob = async (req, res, next) => {
         return res.status(201).json({
             message: 'Job posted successfully',
             data: {
-                job: safeJob,
-                createdAt: safeJob.createdAt
+                job: safeJob
             }
         });
     } catch (error) {
@@ -408,20 +412,24 @@ exports.changeStatus = async (req, res, next) => {
         }
 
         try {
-                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                    await Promise.all(
-                        admins.map((a) => 
-                            createNotification({
-                            recipient: a._id,
-                            sender: id,
-                            title: 'New KYC Submission',
-                            message: `${fullLegalName} changed job status.`,
-                            type: 'job',
-                            idType: 'jobId',
-                            id: job._id
-                        })
-                    )
-                    )
+                    const admins = await userModel
+                                    .find({ role: "admin" })
+                                    .select("_id")
+                                    .lean();
+                    
+                                await Promise.all(
+                                    admins.map(admin =>
+                                        createNotification({
+                                            recipient: admin._id,
+                                            sender: id,
+                                            title: "New KYC Submission",
+                                            message: `${fullLegalName} submitted a new KYC application.`,
+                                            type: "kyc",
+                                            idType: "kycId",
+                                            id: kyc._id
+                                        })
+                                    )
+                                );
                 } catch (notifyError) {
                     console.error('Failed to create KYC notification:', notifyError.message);
                 }
@@ -588,50 +596,55 @@ exports.applyJob = async (req, res, next) => {
 
         try {
             const admins = await userModel
-                .find({ role: 'admin', isDeleted: { $ne: true } })
-                .select('_id')
+                .find({ role: "admin" })
+                .select("_id")
                 .lean();
 
-            const notifications = new Map();
+            const notifications = [
+                {
+                    recipient: job.posterId,
+                    sender: id,
+                    title: "New Application Request",
+                    message: `${applicant.fullName} applied for your job: ${job.jobTitle}`,
+                    type: "application",
+                    idType: "applicationId",
+                    id: application._id
+                },
 
-            notifications.set(String(job.posterId), {
-                recipient: job.posterId,
-                sender: id,
-                title: 'New Application Request',
-                message: `${applicant.fullName} applied for your job: ${job.jobTitle}`,
-                type: 'application',
-                idType: 'applicationId',
-                id: application._id
-            });
+                {
+                    recipient: id,
+                    sender: job.posterId,
+                    title: "Application Submitted",
+                    message: `Your application for ${job.jobTitle} was submitted successfully.`,
+                    type: "application",
+                    idType: "applicationId",
+                    id: application._id
+                },
 
-            for (const a of admins) {
-                const key = String(a._id);
-                if (!notifications.has(key) && key !== String(id)) {
-                    notifications.set(key, {
-                        recipient: a._id,
+                ...admins
+                    .filter(admin => String(admin._id) !== String(id))
+                    .map(admin => ({
+                        recipient: admin._id,
                         sender: id,
-                        title: 'New Job Application',
+                        title: "New Job Application",
                         message: `${applicant.fullName} applied for the job: ${job.jobTitle}`,
-                        type: 'job',
-                        idType: 'jobId',
+                        type: "job",
+                        idType: "jobId",
                         id: job._id
-                    });
-                }
-            }
+                    }))
+            ];
 
-            notifications.set(String(id), {
-                recipient: id,
-                sender: job.posterId,
-                title: 'Application Submitted',
-                message: `Your application for ${job.jobTitle} was submitted successfully.`,
-                type: 'application',
-                idType: 'applicationId',
-                id: application._id
-            });
 
-            await notificationModel.insertMany([...notifications.values()], { ordered: false });
+            await createNotification.insertMany(
+                notifications,
+                { ordered: false }
+            );
+
         } catch (notifyError) {
-            console.error('Failed to create application notifications:', notifyError.message);
+            console.error(
+                "Failed to create application notifications:",
+                notifyError.message
+            );
         }
 
         return res.status(201).json({
