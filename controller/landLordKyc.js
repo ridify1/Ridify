@@ -6,6 +6,7 @@ const propertyModel = require('../model/propertyUpload')
 const recordView = require('../utils/propertyHelper')
 const fs = require('fs')
 const mongoose = require('mongoose')
+const { createNotification } = require("../services/notificationService");
 
 exports.landLordKyc = async (req, res, next) => {
     try {
@@ -100,21 +101,22 @@ const selfieUpload = await uploadGroup(selfieFiles);
         const kyc = await kycModel.create(landlordData);
 
         try {
-            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-            if (admins.length) {
-                await notificationModel.insertMany(admins.map((a) => ({
-                    recipient: a._id,
-                    sender: id,
-                    title: 'New KYC Submission',
-                    message: `${fullLegalName} submitted a new KYC application.`,
-                    type: 'kyc',
-                    idType: 'kycId',
-                    id: kyc._id
-                })));
-            }
-        } catch (notifyError) {
-            console.error('Failed to create KYC notification:', notifyError.message);
-        }
+                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+                    await Promise.all(
+                        admins.map((a) => createNotification({
+                            recipient: a._id,
+                            sender: id,
+                            title: 'New KYC Submission',
+                            message: `${fullLegalName} submitted a new KYC application.`,
+                            type: 'kyc',
+                            idType: 'kycId',
+                            id: kyc._id
+                        })
+                    )
+                    )
+                } catch (notifyError) {
+                    console.error('Failed to create KYC notification:', notifyError.message);
+                }
 
         res.status(201).json({
             message: "Landlord KYC submitted successfully",
@@ -296,25 +298,29 @@ exports.propertyUpload = async (req, res, next) => {
         });
 
         try {
-    const recipients = await userModel.find({ role: 'user' }).select('_id').lean();
+            const recipients = await userModel
+            .find({
+                role: { $in: ["user", "admin"] }
+            })
+            .select("_id")
+            .lean();
 
-        if (recipients.length) {
-            await notificationModel.insertMany(
-                recipients.map((r) => ({
-                    recipient: r._id,
+        await Promise.all(
+            recipients.map((user) =>
+                createNotification({
+                    recipient: user._id,
                     sender: id,
-                    title: 'New Property Upload',
-                    message: `${user.fullName} uploaded a new property.`,
-                    type: 'property',
-                    idType: 'propertyId',
+                    title: "New Property Alert",
+                    message: `${id} posted a new property: ${category}`,
+                    type: "property",
+                    idType: "propertyId",
                     id: property._id
-                })),
-                { ordered: false }
-            );
+                })
+            )
+        );
+        } catch (notifyError) {
+            console.error('Failed to create property notifications:', notifyError.message);
         }
-    } catch (notifyError) {
-        console.error('Failed to create property notifications:', notifyError.message);
-    }
 
         res.status(201).json({
             message: 'Property uploaded successfully',
@@ -491,21 +497,27 @@ exports.updatePropertyUpload = async (req, res, next) => {
         }
 
         try {
-            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-            if (admins.length) {
-                await notificationModel.insertMany(admins.map((a) => ({
-                    recipient: a._id,
-                    sender: id,
-                    title: 'New KYC Submission',
-                    message: `${kyc.fullLegalName} updated his property.`,
-                    type: 'update',
-                    idType: 'updateId',
-                    id: propertyId
-                })));
-            }
-        } catch (notifyError) {
-            console.error('Failed to create KYC notification:', notifyError.message);
-        }
+                    const admins = await userModel
+                                    .find({ role: "admin" })
+                                    .select("_id")
+                                    .lean();
+                    
+                                await Promise.all(
+                                    admins.map(admin =>
+                                        createNotification({
+                                            recipient: admin._id,
+                                            sender: id,
+                                            title: "New Property Update",
+                                            message: `${id} updated a property: ${propertyId}.`,
+                                            type: "property",
+                                            idType: "propertyId",
+                                            id: property._id
+                                        })
+                                    )
+                                );
+                } catch (notifyError) {
+                    console.error('Failed to create update property notification:', notifyError.message);
+                }
 
         res.status(200).json({
             message: 'Property updated successfully',
@@ -745,13 +757,31 @@ exports.changeStatus = async (req, res, next) => {
             });
         }
 
-    await createNotification({
-    recipient: property.landLordId,
-    sender: req.user.id,
-    title: "Property Status Changed",
-    message: `${req.user.fullName} updated the status of your property.`,
-    type: "property"
-});
+    try {
+            const recipients = await userModel
+            .find({
+                role: { $in: ["user", "admin"] }
+            })
+            .select("_id")
+            .lean();
+
+        await Promise.all(
+            recipients.map((user) =>
+                createNotification({
+                    recipient: user._id,
+                    sender: id,
+                    title: "New Property Status Change",
+                    message: `${id} changed a property status: ${propertyId}`,
+                    type: "property",
+                    idType: "propertyId",
+                    id: property._id
+                })
+            )
+        );
+        } catch (notifyError) {
+            console.error('Failed to create property status change notifications:', notifyError.message);
+        }
+
 
         return res.status(200).json({
             message: 'status updated succesfully'
@@ -852,13 +882,30 @@ exports.deleteProperty = async (req, res, next) => {
             });
         }
 
-    await createNotification({
-    recipient: property.landLordId,
-    sender: req.user.id,
-    title: "Property Deleted",
-    message: `${req.user.fullName} deleted your property.`,
-    type: "property"
-});
+    try {
+            const recipients = await userModel
+            .find({
+                role: { $in: ["user", "admin"] }
+            })
+            .select("_id")
+            .lean();
+
+        await Promise.all(
+            recipients.map((user) =>
+                createNotification({
+                    recipient: user._id,
+                    sender: id,
+                    title: "Property Deletion Alert",
+                    message: `${id} deleted a property: ${propertyId}`,
+                    type: "property",
+                    idType: "propertyId",
+                    id: property._id
+                })
+            )
+        );
+        } catch (notifyError) {
+            console.error('Failed to create property deletion notifications:', notifyError.message);
+        }
 
 
         res.status(200).json({

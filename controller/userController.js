@@ -33,6 +33,7 @@ const generateOtp = () => otpGenerator.generate(6, {
       lowerCaseAlphabets: false,
       specialChars: false
 });
+const { createNotification } = require("../services/notificationService");
 
 exports.appleLogin = async (req, res, next) => {
     try {
