@@ -3,133 +3,134 @@ const express = require('express');
 const inspectionModel = require('../model/inspection');
 const userModel = require('../model/user');
 const propertyModel = require('../model/propertyUpload');
+const { createNotification } = require("../services/notificationService");
 
 exports.createInspection = async (req, res, next) => {
-    try {
-        const { id } = req.user;
+     try {
+    //     const { id } = req.user;
 
-        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
-            return next({ message: 'User not authenticated.', statusCode: 401 });
-        }
+    //     if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+    //         return next({ message: 'User not authenticated.', statusCode: 401 });
+    //     }
 
-        const { propertyId } = req.params;
+    //     const { propertyId } = req.params;
 
-        if (!mongoose.Types.ObjectId.isValid(propertyId)) {
-            return next({ message: 'Invalid property ID', statusCode: 400 });
-        }
+    //     if (!mongoose.Types.ObjectId.isValid(propertyId)) {
+    //         return next({ message: 'Invalid property ID', statusCode: 400 });
+    //     }
 
-        const { preferredDate } = req.body;
-        const preferredTime = String(req.body.preferredTime || '').trim().slice(0, 50);
-        const message = String(req.body.message || '').trim().slice(0, 500);
+    //     const { preferredDate } = req.body;
+    //     const preferredTime = String(req.body.preferredTime || '').trim().slice(0, 50);
+    //     const message = String(req.body.message || '').trim().slice(0, 500);
 
-        if (!preferredDate) {
-            return next({ message: 'Preferred date is required.', statusCode: 400 });
-        }
+    //     if (!preferredDate) {
+    //         return next({ message: 'Preferred date is required.', statusCode: 400 });
+    //     }
 
-        const date = new Date(preferredDate);
-        if (Number.isNaN(date.getTime()) || date < new Date()) {
-            return next({ message: 'Choose a valid future date', statusCode: 400 });
-        }
+    //     const date = new Date(preferredDate);
+    //     if (Number.isNaN(date.getTime()) || date < new Date()) {
+    //         return next({ message: 'Choose a valid future date', statusCode: 400 });
+    //     }
 
-        const user = await userModel.findById(id);
-        if (!user) {
-            return next({ message: 'User not found.', statusCode: 404 });
-        }
+    //     const user = await userModel.findById(id);
+    //     if (!user) {
+    //         return next({ message: 'User not found.', statusCode: 404 });
+    //     }
 
-        const property = await propertyModel.findOne({
-            _id: propertyId,
-            isDeleted: { $ne: true }
-        });
+    //     const property = await propertyModel.findOne({
+    //         _id: propertyId,
+    //         isDeleted: { $ne: true }
+    //     });
 
-        if (!property) {
-            return next({ message: 'Property not found.', statusCode: 404 });
-        }
+    //     if (!property) {
+    //         return next({ message: 'Property not found.', statusCode: 404 });
+    //     }
 
-        if (String(property.landLordId) === String(id)) {
-            return next({ message: 'You cannot inspect your own property', statusCode: 400 });
-        }
+    //     if (String(property.landLordId) === String(id)) {
+    //         return next({ message: 'You cannot inspect your own property', statusCode: 400 });
+    //     }
 
-        if (property.status !== 'available') {
-            return next({ message: 'This property is not available for inspection', statusCode: 400 });
-        }
+    //     if (property.status !== 'available') {
+    //         return next({ message: 'This property is not available for inspection', statusCode: 400 });
+    //     }
 
-        const existing = await inspectionModel.findOne({
-            propertyId,
-            inspectorId: id,
-            status: { $in: ['pending', 'accepted'] }
-        });
+    //     const existing = await inspectionModel.findOne({
+    //         propertyId,
+    //         inspectorId: id,
+    //         status: { $in: ['pending', 'accepted'] }
+    //     });
 
-        if (existing) {
-            return next({ message: 'You already have an open request for this property', statusCode: 409 });
-        }
+    //     if (existing) {
+    //         return next({ message: 'You already have an open request for this property', statusCode: 409 });
+    //     }
 
-        const newInspection = await inspectionModel.create({
-            propertyId,
-            landLordId: property.landLordId,
-            inspectorId: id,
-            preferredDate: date,
-            preferredTime,
-            message
-        });
+    //     const newInspection = await inspectionModel.create({
+    //         propertyId,
+    //         landLordId: property.landLordId,
+    //         inspectorId: id,
+    //         preferredDate: date,
+    //         preferredTime,
+    //         message
+    //     });
 
-        const inspector = await userModel.findById(id).select('fullName').lean();
+    //     const inspector = await userModel.findById(id).select('fullName').lean();
 
-        if (!inspector) {
-            return next({ message: 'User not found', statusCode: 404 });
-        }
+    //     if (!inspector) {
+    //         return next({ message: 'User not found', statusCode: 404 });
+    //     }
 
-        try {
-            const admins = await userModel
-                .find({ role: 'admin', isDeleted: { $ne: true } })
-                .select('_id')
-                .lean();
+    //     try {
+    //         const admins = await userModel
+    //             .find({ role: 'admin', isDeleted: { $ne: true } })
+    //             .select('_id')
+    //             .lean();
 
-            const notifications = new Map();
+    //         const notifications = [
+    //             {
+    //             recipient: newInspection.landLordId,
+    //             sender: id,
+    //             title: 'New inspection Request',
+    //             message: `${inspector.fullName} applied to inspect your property: ${newInspection.propertyId}`,
+    //             type: 'inspection',
+    //             idType: 'inspectionId',
+    //             id: newInspection._id
+    //         },
 
-            notifications.set(String(job.posterId), {
-                recipient: newInspection.landLordId,
-                sender: id,
-                title: 'New inspection Request',
-                message: `${inspector.fullName} applied to inspect your property: ${newInspection.propertyId}`,
-                type: 'inspection',
-                idType: 'inspectionId',
-                id: newInspection._id
-            });
+    //         for (const a of admins) {
+    //             const key = String(a._id);
+    //             if (!notifications.has(key) && key !== String(id)) {
+    //                 notifications.set(key, {
+    //                     recipient: a._id,
+    //                     sender: id,
+    //                     title: 'New Property Application',
+    //                     message: `${inspector.fullName} applied for property inspection: ${newInspection.propertyId}`,
+    //                     type: 'inspection',
+    //                     idType: 'inspectionId',
+    //                     id: newInspection._id
+    //                 });
+    //             }
+    //         },
 
-            for (const a of admins) {
-                const key = String(a._id);
-                if (!notifications.has(key) && key !== String(id)) {
-                    notifications.set(key, {
-                        recipient: a._id,
-                        sender: id,
-                        title: 'New Property Application',
-                        message: `${inspector.fullName} applied for property inspection: ${newInspection.propertyId}`,
-                        type: 'inspection',
-                        idType: 'inspectionId',
-                        id: newInspection._id
-                    });
-                }
-            }
+    //         notifications.set(String(id), {
+    //             recipient: id,
+    //             sender: newInspection.inspectorId,
+    //             title: 'Inspection Submitted',
+    //             message: `Your application to inspect ${newInspection.propertyId} was submitted successfully.`,
+    //             type: 'inspection',
+    //             idType: 'inspectionId',
+    //             id: newInspection._id
+    //         })
+    //         ];
 
-            notifications.set(String(id), {
-                recipient: id,
-                sender: newInspection.inspectorId,
-                title: 'Inspection Submitted',
-                message: `Your application to inspect ${newInspection.propertyId} was submitted successfully.`,
-                type: 'inspection',
-                idType: 'inspectionId',
-                id: newInspection._id
-            });
+    //         await notificationModel.insertMany([...notifications.values()], { ordered: false });
+    //     } catch (notifyError) {
+    //         console.error('Failed to create application notifications:', notifyError.message);
+    //     }
 
-            await notificationModel.insertMany([...notifications.values()], { ordered: false });
-        } catch (notifyError) {
-            console.error('Failed to create application notifications:', notifyError.message);
-        }
-
-        return res.status(201).json({
-            message: 'Inspection request sent successfully',
-            data: newInspection
-        });
+    //     return res.status(201).json({
+    //         message: 'Inspection request sent successfully',
+    //         data: newInspection
+    //     });
     } catch (error) {
         if (error.code === 11000) {
             return next({ message: 'You already have an open request for this property', statusCode: 409 });
