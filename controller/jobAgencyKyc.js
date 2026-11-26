@@ -4,6 +4,7 @@ const userModel = require('../model/user')
 const cloudinary = require('../config/cloudinary')
 const fs = require('fs')
 const mongoose = require('mongoose')
+const { createNotification } = require("../services/notificationService");
 
 exports.jobAgencyKyc = async (req, res, next) => {
     try {
@@ -108,6 +109,24 @@ const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
         };
 
         const kyc = await kycModel.create(jobAgencyData);
+
+        try {
+                            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+                            await Promise.all(
+                                admins.map((a) => createNotification({
+                                    recipient: a._id,
+                                    sender: id,
+                                    title: 'New KYC Submission',
+                                    message: `${fullLegalName} submitted a new KYC application.`,
+                                    type: 'kyc',
+                                    idType: 'kycId',
+                                    id: kyc._id
+                                })
+                            )
+                            )
+                        } catch (notifyError) {
+                            console.error('Failed to create KYC notification:', notifyError.message);
+                        }
 
         res.status(201).json({
             message: "Job Agency KYC submitted successfully",

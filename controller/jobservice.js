@@ -6,6 +6,7 @@ const kycModel = require('../model/artisanKyc')
 const serviceApplyModel = require('../model/serviceApply')
 const cloudinary = require('../config/cloudinary')
 const fs = require('fs');
+const { createNotification } = require("../services/notificationService");
 
 
 const ALLOWED_CATEGORIES = [
@@ -110,9 +111,6 @@ exports.myServices = async (req, res, next) => {
 
 
     try {
-
-        console.log("BODY:", req.body);
-        console.log("FILES:", req.files);
 
 
         const { id } = req.user;
@@ -280,7 +278,58 @@ exports.myServices = async (req, res, next) => {
 
         });
 
+        try {
+            const admins = await userModel
+                .find({ role: "admin" })
+                .select("_id")
+                .lean();
 
+            const notifications = [
+                {
+                    recipient: kyc.artisanId,
+                    sender: id,
+                    title: "New Artisan Service",
+                    message: `${kyc.fullName} posted a service: ${category}`,
+                    type: "service",
+                    idType: "serviceId",
+                    id: service._id
+                },
+
+                {
+                    recipient: id,
+                    sender: kyc.artisanId,
+                    title: "New Artisan Service",
+                    message: `${kyc.fullName} posted a service: ${category}`,
+                    type: "service",
+                    idType: "serviceId",
+                    id: service._id
+                },
+
+                ...admins
+                    .filter(admin => String(admin._id) !== String(id))
+                    .map(admin => ({
+                        recipient: admin._id,
+                        sender: id,
+                        title: "New Artisan Service",
+                        message: `${kyc.fullName} posted a service for this category: ${category}`,
+                        type: "service",
+                        idType: "serviceId",
+                        id: service._id
+                    }))
+            ];
+
+
+            await createNotification.insertMany(
+                notifications,
+                { ordered: false }
+            );
+
+        } catch (notifyError) {
+            console.error(
+                "Failed to create service notifications:",
+                notifyError.message
+            );
+        }
 
         return res.status(201).json({
 
@@ -415,24 +464,58 @@ exports.createserviceApplication = async (req, res, next) => {
             message
         });
 
-        try{await notificationModel.create({
+        try {
+            const admins = await userModel
+                .find({ role: "admin" })
+                .select("_id")
+                .lean();
 
-            recipient: service.artisanId,
+            const notifications = [
+                {
+                    recipient: service.artisanId,
+                    sender: id,
+                    title: "New Service Application",
+                    message: `${userExists.fullName} applied for the service of : ${service.artisanId}`,
+                    type: "application",
+                    idType: "applicationId",
+                    id: application._id
+                },
 
-            sender: userExists._id,
+                {
+                    recipient: id,
+                    sender: service.artisanId,
+                    title: "New Service Application",
+                    message: `${userExists.fullName} applied for the service of : ${service.artisanId}`,
+                    type: "application",
+                    idType: "applicationId",
+                    id: application._id
+                },
 
-            title: "New Service Application",
+                ...admins
+                    .filter(admin => String(admin._id) !== String(id))
+                    .map(admin => ({
+                        recipient: admin._id,
+                        sender: id,
+                        title: "New Service Application",
+                        message: `${userExists.fullName} applied for the service of : ${service.artisanId}`,
+                        type: "application",
+                        idType: "applicationId",
+                        id: application._id
+                    }))
+            ];
 
-            message: `${userExists.fullName} requested your service.`,
 
-            type: "serviceApplication",
+            await createNotification.insertMany(
+                notifications,
+                { ordered: false }
+            );
 
-            idType: "serviceApplicationId",
-
-            id: newService._id
-        })}catch (notifyError) {
-            console.error('Failed to create notification:', notifyError.message);
-        };
+            } catch (notifyError) {
+            console.error(
+                "Failed to create application notifications:",
+                notifyError.message
+            );
+        }
 
         return res.status(201).json({
             message: 'Service request sent successfully',
@@ -585,6 +668,29 @@ exports.updateApplicationStatus = async (req, res, next) => {
         application.declineReason = status === 'declined' ? declineReason : undefined;
 
         await application.save();
+
+        try {
+                            const admins = await userModel
+                                            .find({ role: "admin" })
+                                            .select("_id")
+                                            .lean();
+                            
+                                        await Promise.all(
+                                            admins.map(admin =>
+                                                createNotification({
+                                                    recipient: admin._id,
+                                                    sender: id,
+                                                    title: "Update In Application Status",
+                                                    message: `${id} updated application status.`,
+                                                    type: "application",
+                                                    idType: "applicationId",
+                                                    id: application._id
+                                                })
+                                            )
+                                        );
+                        } catch (notifyError) {
+                            console.error('Failed to create KYC notification:', notifyError.message);
+                        }
 
         return res.status(200).json({
             message: 'Application status updated successfully',
