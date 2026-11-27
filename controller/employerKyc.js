@@ -719,34 +719,26 @@ exports.getJobByJobId = async (req, res, next) => {
 
         const job = await postJobModel
             .findOne({ _id: jobId, isDeleted: { $ne: true }})
-            .select("jobTitle aboutJob description qualification experience status image imagePublicId")
+            .select("posterId jobTitle aboutJob description qualification experience status image imagePublicId")
             .lean();
 
             if (!job) {
                 return next({ message: 'Job not found', statusCode: 404 });
             }
-        
-        const employer = await employerModel
-            .findById(job.posterId)
-            .select("fullLegalName jobTitle companyName")
-            .lean();
 
-        const agency = employer
-            ? null
-            : await agencyModel
-                .findById(job.posterId)
-                .select("fullLegalName jobTitle companyName")
-                .lean();
+        const posterUser = await userModel
+    .findById(job.posterId)
+    .select('fullName image role')
+    .lean();
 
-        const poster = employer || agency;
-
-        return res.status(200).json({
+          return res.status(200).json({
             message: "Job retrieved successfully",
             data: {
                 job,
-                poster
+                poster: posterUser
             }
         });
+
             } catch (error) {
                 return next({ message: error.message, statusCode: 500 });
             }
