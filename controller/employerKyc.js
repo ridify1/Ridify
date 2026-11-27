@@ -338,8 +338,8 @@ exports.getJob = async (req, res, next) => {
         
         const job = await postJobModel
             .findOne({ _id: jobId, posterId: id })
-            .select("jobTitle aboutJob image imagePublicId")
-            .lean();
+            .lean()
+            // .select("jobTitle aboutJob image imagePublicId")
 
         if (!job) {
             return next({ message: 'Job not found', statusCode: 404 });
