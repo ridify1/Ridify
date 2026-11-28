@@ -780,10 +780,9 @@ exports.getJobsByApplicant = async (req, res, next) => {
     const applications = await applyJobModel
             .find({ applicantId: id })
             .select('-cvPublicId -coverLetterPublicId')
-            .populate('jobId', 'jobTitle aboutJob experience posterId')
             .sort({ createdAt: -1 })
             .lean();
-
+    
     return res.status(200).json({
             message: applications.length ? 'Applications retrieved successfully' : 'No applications to display',
             count: applications.length,
@@ -868,10 +867,10 @@ exports.getSingleApplication = async (req, res, next) => {
             .lean();
 
         const isApplicant = String(application.applicantId) === String(id);
-        const isPoster = job && String(job.posterId) === String(id);
+        const isPoster = String(job.posterId) === String(id);
 
         if (!isApplicant && !isPoster) {
-            return next({ message: 'Application not found', statusCode: 200 });
+            return next({ message: 'Application not found', statusCode: 404 });
         }
 
         return res.status(200).json({
