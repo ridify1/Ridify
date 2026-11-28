@@ -870,7 +870,7 @@ exports.getSingleApplication = async (req, res, next) => {
         const isApplicant = String(application.applicantId) === String(id);
         const isPoster = job && String(job.posterId) === String(id);
 
-        if (!isApplicant || !isPoster) {
+        if (!isApplicant && !isPoster) {
             return next({ message: 'Application not found', statusCode: 200 });
         }
 
