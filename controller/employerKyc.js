@@ -50,16 +50,16 @@ if (!ALLOWED_ROLES.includes(checkRole.role)) {
         statusCode: 403
     });
 }
-        const { fullLegalName, jobTitle, workEmail, companyName, registrationNumber, registeredAddress, companyWebsite, organizationSize } = req.body;
+        const { fullLegalName, jobTitle, roleInCompany, companyEmail, phoneNumber, companyName, companyType, industry, yearFounded,aboutTheCompany, registrationNumber, taxId, officeAddress, city, state, country, companyWebsite, linkedIn, instagram, xTwitter, whatDoYouHireFor, organizationSize } = req.body;
 
-        if (!fullLegalName || !jobTitle || !workEmail || !companyName || !registrationNumber || !registeredAddress || !organizationSize) {
+        if (!fullLegalName || !jobTitle || !companyEmail || !companyType || !registrationNumber || !roleInCompany || !organizationSize || !phoneNumber || !companyName || !industry || !aboutTheCompany || !officeAddress || !city || !state || !country) {
             return next({
                 message: "All fields are required",
                 statusCode: 400
             })
         }
 
-        if (!workEmail || !workEmail.includes('@') || !workEmail.includes('.')) {
+        if (!companyEmail || !companyEmail.includes('@') || !companyEmail.includes('.')) {
     return next({
         message: 'Input a valid Email Address',
         statusCode: 400
@@ -69,6 +69,8 @@ if (!ALLOWED_ROLES.includes(checkRole.role)) {
         const idFiles = req.files?.identification || [];
 const selfieFiles = req.files?.selfie || [];
 const businessDocumentFiles = req.files?.businessDocument || [];
+const companyLogoFiles = req.files?.companyLogo || [];
+const proofOfAddressFiles = req.files?.proofOfAddress || [];
 
 if (!idFiles.length || !selfieFiles.length || !businessDocumentFiles) {
     return next({
@@ -94,16 +96,17 @@ const uploadGroup = async (files) => {
 const idUpload = await uploadGroup(idFiles);
 const selfieUpload = await uploadGroup(selfieFiles);
 const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
+const companyLogoUpload = await uploadGroup(companyLogoFiles);
+const proofOfAddressUpload = await uploadGroup(proofOfAddressFiles);
 
 
         const employerData = {
             employerId: id,
             fullLegalName,
             jobTitle,
-            workEmail,
+            companyEmail,
             companyName,
             registrationNumber,
-            registeredAddress,
             companyWebsite,
             organizationSize,
             identification: idUpload.urls[0],
@@ -112,6 +115,10 @@ const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
             businessDocumentPublicId: businessDocumentUpload.publicIds[0],
             selfie: selfieUpload.urls[0],
             selfiePublicId: selfieUpload.publicIds[0],
+            companyLogo: companyLogoUpload.urls[0],
+            companyLogoPublicId: companyLogoUpload.publicIds[0],
+            proofOfAddress: proofOfAddressUpload.urls[0],
+            proofOfAddressPublicId: proofOfAddressUpload.publicIds[0],
         };
 
         const kyc = await kycModel.create(employerData);
@@ -775,7 +782,7 @@ exports.getSingleApplication = async (req, res, next) => {
         const isApplicant = String(application.applicantId) === String(id);
         const isPoster = job && String(job.posterId) === String(id);
 
-        if (!isApplicant && !isPoster) {
+        if (!isApplicant || !isPoster) {
             return next({ message: 'Application not found', statusCode: 200 });
         }
 

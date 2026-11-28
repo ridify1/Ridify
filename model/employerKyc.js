@@ -16,8 +16,14 @@ const employerKycSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    workEmail: {
+    roleInCompany: {
         type: String,
+        required: true,
+        trim: true,
+        enum: ["ownerFounder", "director","hrmanager","recruiter"]
+    },
+    phoneNumber: {
+        type: Number,
         unique: true,
         required: true,
         trim: true
@@ -27,12 +33,62 @@ const employerKycSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
+    companyType: {
+        type: String,
+        required: true,
+        trim: true,
+        enum: ["limitedCompany", "publicLimitedCompany", "registeredBusinessName", "soleProprietor", "partnership", "ngoOrNonProfit", "governmentAgency", "recruitmentOrJobAgency"]
+    },
+    industry: {
+        type: String,
+        required: true,
+        trim: true,
+        enum: ["constructionAndCivilEngineering", "realEstateAndPropertyManagement", "homeAndRepairServices", "electricalPlumbingAndHvac", "manufacturing", "logisticsAndTransport","hospitalityHotelsAndRestaurants", "retailAndEcommerce", "technologyAndSoftware","telecommunications", "bankingFinanceAndInsurance", "oilGasEnergy","agricultureAndFoodProcessing", "healthcareAndPharmaceuticals", "educationAndTraining", "mediaAdvertisingAndEntertainment", "securityServices", "cleaningAndFacilitiesManagement", "legalAccountingAndConsulting", "staffAndRecruitment", "other"]
+    },
+    yearFounded: {
+        type: Number,
+        trim: true
+    },
+    organizationSize: {
+        type: Number,
+        required: true,
+        trim: true
+    },
+    aboutTheCompany: {
+        type: String,
+        required: true,
+        trim: true
+    },
     registrationNumber: {
         type: String,
         required: true,
         trim: true
     },
-    registeredAddress: {
+    taxId: {
+        type: String,
+        trim: true
+    },
+    officeAddress: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    city: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    state: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    country: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    companyEmail: {
         type: String,
         required: true,
         trim: true
@@ -41,11 +97,21 @@ const employerKycSchema = new mongoose.Schema({
         type: String,
         trim: true
     },
-    organizationSize: {
-        type: Number,
-        required: true,
+    linkedIn: {
+        type: String,
         trim: true
     },
+    instagram: {
+        type: String,
+        trim: true
+    },
+    xTwitter: {
+        type: String,
+        trim: true
+    },
+    whatDoYouHireFor: [{
+        type: String
+    }],
     identification: {
         type: String,
         required: true
@@ -61,6 +127,18 @@ const employerKycSchema = new mongoose.Schema({
     businessDocumentPublicId: {
         type: String,
         required: true
+    },
+    companyLogo: {
+        type: String
+      },
+    companyLogoPublicId: {
+        type: String
+    },
+    proofOfAddress: {
+        type: String
+      },
+    proofOfAddressPublicId: {
+        type: String
     },
     selfie: {
         type: String,
