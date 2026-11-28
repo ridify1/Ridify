@@ -18,7 +18,7 @@ const router = express.Router();
  *     tags:
  *       - Employer/Hr Kyc
  *     summary: Submit employer KYC
- *     description: Submits KYC details for an employer with an identification image, a selfie and a business registration document. Only users with the employer or hr role can submit, and each user can submit once. The submission starts as unverified until it is reviewed.
+ *     description: Submits KYC details for an employer or company, with an identification image, a selfie and a business registration document, plus an optional company logo and proof of address. Only users with the employer or hr role can submit, and each user can submit once. The submission starts as unverified until it is reviewed, and every admin receives a notification when it is submitted.
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -30,11 +30,19 @@ const router = express.Router();
  *             required:
  *               - fullLegalName
  *               - jobTitle
- *               - workEmail
+ *               - roleInCompany
+ *               - companyEmail
+ *               - phoneNumber
  *               - companyName
+ *               - companyType
+ *               - industry
+ *               - aboutTheCompany
  *               - registrationNumber
- *               - registeredAddress
  *               - organizationSize
+ *               - officeAddress
+ *               - city
+ *               - state
+ *               - country
  *               - identification
  *               - selfie
  *               - businessDocument
@@ -45,22 +53,73 @@ const router = express.Router();
  *               jobTitle:
  *                 type: string
  *                 example: Head of Human Resources
- *               workEmail:
+ *               roleInCompany:
+ *                 type: string
+ *                 enum: [ownerFounder, director, hrmanager, recruiter]
+ *                 example: hrmanager
+ *               companyEmail:
  *                 type: string
  *                 example: jane.doe@acme.com
  *                 description: Must be a valid email address
+ *               phoneNumber:
+ *                 type: string
+ *                 example: "08012345678"
  *               companyName:
  *                 type: string
  *                 example: Acme Industries Ltd
+ *               companyType:
+ *                 type: string
+ *                 enum: [limitedCompany, publicLimitedCompany, registeredBusinessName, soleProprietor, partnership, ngoOrNonProfit, governmentAgency, recruitmentOrJobAgency]
+ *                 example: limitedCompany
+ *               industry:
+ *                 type: string
+ *                 enum: [constructionAndCivilEngineering, realEstateAndPropertyManagement, homeAndRepairServices, electricalPlumbingAndHvac, manufacturing, logisticsAndTransport, hospitalityHotelsAndRestaurants, retailAndEcommerce, technologyAndSoftware, telecommunications, bankingFinanceAndInsurance, oilGasEnergy, agricultureAndFoodProcessing, healthcareAndPharmaceuticals, educationAndTraining, mediaAdvertisingAndEntertainment, securityServices, cleaningAndFacilitiesManagement, legalAccountingAndConsulting, staffAndRecruitment, other]
+ *                 example: constructionAndCivilEngineering
+ *               yearFounded:
+ *                 type: integer
+ *                 example: 2015
+ *                 description: Optional. A year between 1800 and the current year
+ *               aboutTheCompany:
+ *                 type: string
+ *                 example: We build residential and commercial properties across Lagos
  *               registrationNumber:
  *                 type: string
  *                 example: RC1234567
- *               registeredAddress:
+ *               taxId:
  *                 type: string
- *                 example: 12 Admiralty Way, Lekki, Lagos
+ *                 example: "12345678-0001"
+ *                 description: Optional
+ *               officeAddress:
+ *                 type: string
+ *                 example: 12 Admiralty Way, Lekki Phase 1
+ *               city:
+ *                 type: string
+ *                 example: Lekki
+ *               state:
+ *                 type: string
+ *                 example: Lagos
+ *               country:
+ *                 type: string
+ *                 example: Nigeria
  *               companyWebsite:
  *                 type: string
  *                 example: https://www.acme.com
+ *                 description: Optional. Must be a valid http or https URL
+ *               linkedIn:
+ *                 type: string
+ *                 example: https://www.linkedin.com/company/acme
+ *                 description: Optional. Must be a valid http or https URL
+ *               instagram:
+ *                 type: string
+ *                 example: https://www.instagram.com/acme
+ *                 description: Optional. Must be a valid http or https URL
+ *               xTwitter:
+ *                 type: string
+ *                 example: https://x.com/acme
+ *                 description: Optional. Must be a valid http or https URL
+ *               whatDoYouHireFor:
+ *                 type: string
+ *                 example: Electricians, plumbers and site supervisors
  *                 description: Optional
  *               organizationSize:
  *                 type: string
@@ -77,7 +136,15 @@ const router = express.Router();
  *               businessDocument:
  *                 type: string
  *                 format: binary
- *                 description: Business registration document. Only one file is accepted.
+ *                 description: Business registration document (image or PDF). Only one file is accepted.
+ *               companyLogo:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional company logo. Only one file is accepted.
+ *               proofOfAddress:
+ *                 type: string
+ *                 format: binary
+ *                 description: Optional proof of address, such as a utility bill. Only one file is accepted.
  *     responses:
  *       201:
  *         description: Employer KYC submitted successfully
@@ -92,6 +159,9 @@ const router = express.Router();
  *                 data:
  *                   type: object
  *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       example: 6abb2c3da675b9e38dc42100
  *                     employerId:
  *                       type: string
  *                       example: 6ab0f2ffa675b9e38dc41623
@@ -101,47 +171,88 @@ const router = express.Router();
  *                     jobTitle:
  *                       type: string
  *                       example: Head of Human Resources
- *                     workEmail:
+ *                     roleInCompany:
+ *                       type: string
+ *                       example: hrmanager
+ *                     companyEmail:
  *                       type: string
  *                       example: jane.doe@acme.com
+ *                     phoneNumber:
+ *                       type: string
+ *                       example: "08012345678"
  *                     companyName:
  *                       type: string
  *                       example: Acme Industries Ltd
+ *                     companyType:
+ *                       type: string
+ *                       example: limitedCompany
+ *                     industry:
+ *                       type: string
+ *                       example: constructionAndCivilEngineering
+ *                     yearFounded:
+ *                       type: integer
+ *                       example: 2015
+ *                     aboutTheCompany:
+ *                       type: string
+ *                       example: We build residential and commercial properties across Lagos
  *                     registrationNumber:
  *                       type: string
  *                       example: RC1234567
- *                     registeredAddress:
+ *                     taxId:
  *                       type: string
- *                       example: 12 Admiralty Way, Lekki, Lagos
+ *                       example: "12345678-0001"
+ *                     officeAddress:
+ *                       type: string
+ *                       example: 12 Admiralty Way, Lekki Phase 1
+ *                     city:
+ *                       type: string
+ *                       example: Lekki
+ *                     state:
+ *                       type: string
+ *                       example: Lagos
+ *                     country:
+ *                       type: string
+ *                       example: Nigeria
  *                     companyWebsite:
  *                       type: string
  *                       example: https://www.acme.com
+ *                     linkedIn:
+ *                       type: string
+ *                       example: https://www.linkedin.com/company/acme
+ *                     instagram:
+ *                       type: string
+ *                       example: https://www.instagram.com/acme
+ *                     xTwitter:
+ *                       type: string
+ *                       example: https://x.com/acme
+ *                     whatDoYouHireFor:
+ *                       type: string
+ *                       example: Electricians, plumbers and site supervisors
  *                     organizationSize:
  *                       type: string
  *                       example: 11-50
  *                     identification:
  *                       type: string
  *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/id.jpg
- *                     identificationPublicId:
- *                       type: string
- *                       example: Ridify/employerKyc/id
- *                     businessDocument:
- *                       type: string
- *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.jpg
- *                     businessDocumentPublicId:
- *                       type: string
- *                       example: Ridify/employerKyc/doc
  *                     selfie:
  *                       type: string
  *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/selfie.jpg
- *                     selfiePublicId:
+ *                     businessDocument:
  *                       type: string
- *                       example: Ridify/employerKyc/selfie
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/doc.pdf
+ *                     companyLogo:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/logo.png
+ *                       description: Only present when a logo was uploaded
+ *                     proofOfAddress:
+ *                       type: string
+ *                       example: https://res.cloudinary.com/demo/image/upload/Ridify/employerKyc/address.jpg
+ *                       description: Only present when a proof of address was uploaded
  *                     kycVerified:
  *                       type: boolean
  *                       example: false
  *       400:
- *         description: Missing required fields, invalid work email, missing identification, selfie or business document, or KYC already submitted (pending or verified)
+ *         description: Missing required fields, invalid company email, role, company type or industry not allowed, invalid year founded or URL, missing identification, selfie or business document, or KYC already submitted (pending or verified)
  *       401:
  *         description: User not authenticated or token is missing or invalid
  *       403:
@@ -155,7 +266,9 @@ const router = express.Router();
 router.post('/employerKyc', authenticate, upload.fields([
       { name: 'identification', maxCount: 1 },
       { name: 'selfie', maxCount: 1 },
-      { name: 'businessDocument', maxCount: 1 }
+      { name: 'businessDocument', maxCount: 1 },
+      { name: 'companyLogo', maxCount: 1 },
+      { name: 'proofOfAddress', maxCount: 1 },
   ]), employerKyc)
 
   /**

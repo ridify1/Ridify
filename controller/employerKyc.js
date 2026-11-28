@@ -12,147 +12,235 @@ const mongoose = require('mongoose')
 const validator = require('validator');
 const { createNotification } = require("../services/notificationService");
 
+
+const COMPANY_ROLES = ['ownerFounder', 'director', 'hrmanager', 'recruiter'];
+const COMPANY_TYPES = ['limitedCompany', 'publicLimitedCompany', 'registeredBusinessName', 'soleProprietor', 'partnership', 'ngoOrNonProfit', 'governmentAgency', 'recruitmentOrJobAgency'];
+const INDUSTRIES = ['constructionAndCivilEngineering', 'realEstateAndPropertyManagement', 'homeAndRepairServices', 'electricalPlumbingAndHvac', 'manufacturing', 'logisticsAndTransport', 'hospitalityHotelsAndRestaurants', 'retailAndEcommerce', 'technologyAndSoftware', 'telecommunications', 'bankingFinanceAndInsurance', 'oilGasEnergy', 'agricultureAndFoodProcessing', 'healthcareAndPharmaceuticals', 'educationAndTraining', 'mediaAdvertisingAndEntertainment', 'securityServices', 'cleaningAndFacilitiesManagement', 'legalAccountingAndConsulting', 'staffAndRecruitment', 'other'];
+const ALLOWED_ROLES = ['employer', 'hr'];
+
+const str = (value) => String(value ?? '').trim();
+
+const isHttpUrl = (value) => {
+    try {
+        const { protocol } = new URL(value);
+        return protocol === 'http:' || protocol === 'https:';
+    } catch (_) {
+        return false;
+    }
+};
+
+const removeTempFiles = (files) => {
+    for (const file of files) {
+        try {
+            if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+        } catch (err) {
+            console.error('Temp file cleanup failed:', err.message);
+        }
+    }
+};
+
 exports.employerKyc = async (req, res, next) => {
+    const allFiles = Object.values(req.files || {}).flat();
+    const uploaded = []; // for rollback if saving fails
+
+    const uploadOne = async (file) => {
+        if (!file) return {};
+        const result = await cloudinary.uploader.upload(file.path, {
+            folder: 'Ridify/employerKyc',
+            resource_type: 'auto'
+        });
+        uploaded.push({ publicId: result.public_id, resourceType: result.resource_type });
+        return { url: result.secure_url, publicId: result.public_id };
+    };
+
     try {
         const { id } = req.user;
 
-        if (!id) {
-            return next({
-                message: "User not authenticated",
-                statusCode: 401
-            })
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return next({ message: 'User not authenticated', statusCode: 401 });
         }
 
-        const existingKyc = await kycModel.findOne({ employerId: id });
-        
-      if (existingKyc) {
-      return next({
-          message: existingKyc.kycVerified
-              ? "KYC already verified for this user"
-              : "KYC already submitted and pending verification",
-          statusCode: 400
-      });
-  }
+        const user = await userModel.findById(id).select('role').lean();
 
-        const ALLOWED_ROLES = ['employer', 'hr'];
+        if (!user) {
+            return next({ message: 'User not found', statusCode: 404 });
+        }
 
-        const checkRole = await userModel.findById(id);
-        if (!checkRole) {
-    return next({
-        message: "User not found",
-        statusCode: 404
-    });
-}
+        if (!ALLOWED_ROLES.includes(user.role)) {
+            return next({ message: 'Unauthorized: Only employers can submit KYC', statusCode: 403 });
+        }
 
-if (!ALLOWED_ROLES.includes(checkRole.role)) {
-    return next({
-        message: "Unauthorized: Only employers can submit KYC",
-        statusCode: 403
-    });
-}
-        const { fullLegalName, jobTitle, roleInCompany, companyEmail, phoneNumber, companyName, companyType, industry, yearFounded,aboutTheCompany, registrationNumber, taxId, officeAddress, city, state, country, companyWebsite, linkedIn, instagram, xTwitter, whatDoYouHireFor, organizationSize } = req.body;
+        const existingKyc = await kycModel.findOne({ employerId: id }).select('kycVerified').lean();
 
-        if (!fullLegalName || !jobTitle || !companyEmail || !companyType || !registrationNumber || !roleInCompany || !organizationSize || !phoneNumber || !companyName || !industry || !aboutTheCompany || !officeAddress || !city || !state || !country) {
+        if (existingKyc) {
             return next({
-                message: "All fields are required",
+                message: existingKyc.kycVerified
+                    ? 'KYC already verified for this user'
+                    : 'KYC already submitted and pending verification',
                 statusCode: 400
-            })
+            });
         }
 
-        if (!companyEmail || !companyEmail.includes('@') || !companyEmail.includes('.')) {
-    return next({
-        message: 'Input a valid Email Address',
-        statusCode: 400
-    });
-}
+        const body = req.body || {};
+        const fullLegalName = str(body.fullLegalName);
+        const jobTitle = str(body.jobTitle);
+        const roleInCompany = str(body.roleInCompany);
+        const companyEmail = str(body.companyEmail).toLowerCase();
+        const phoneNumber = str(body.phoneNumber);
+        const companyName = str(body.companyName);
+        const companyType = str(body.companyType);
+        const industry = str(body.industry);
+        const aboutTheCompany = str(body.aboutTheCompany);
+        const registrationNumber = str(body.registrationNumber);
+        const taxId = str(body.taxId);
+        const officeAddress = str(body.officeAddress);
+        const city = str(body.city);
+        const state = str(body.state);
+        const country = str(body.country);
+        const organizationSize = str(body.organizationSize);
+        const whatDoYouHireFor = str(body.whatDoYouHireFor);
+        const yearFounded = str(body.yearFounded);
 
-        const idFiles = req.files?.identification || [];
-const selfieFiles = req.files?.selfie || [];
-const businessDocumentFiles = req.files?.businessDocument || [];
-const companyLogoFiles = req.files?.companyLogo || [];
-const proofOfAddressFiles = req.files?.proofOfAddress || [];
+        const links = {
+            companyWebsite: str(body.companyWebsite),
+            linkedIn: str(body.linkedIn),
+            instagram: str(body.instagram),
+            xTwitter: str(body.xTwitter)
+        };
 
-if (!idFiles.length || !selfieFiles.length || !businessDocumentFiles) {
-    return next({
-        message: "Identification, business registration document and selfie images are required",
-        statusCode: 400
-    });
-}
+        if (!fullLegalName || !jobTitle || !roleInCompany || !companyEmail || !phoneNumber ||
+            !companyName || !companyType || !industry || !aboutTheCompany || !registrationNumber ||
+            !organizationSize || !officeAddress || !city || !state || !country) {
+            return next({ message: 'All fields are required', statusCode: 400 });
+        }
 
-const uploadGroup = async (files) => {
-    const urls = [];
-    const publicIds = [];
-    for (const file of files) {
-        const result = await cloudinary.uploader.upload(file.path, {
-            folder: 'Ridify/employerKyc',
-        });
-        urls.push(result.secure_url);
-        publicIds.push(result.public_id);
-        fs.unlinkSync(file.path);
-    }
-    return { urls, publicIds };
-};
+        if (!validator.isEmail(companyEmail)) {
+            return next({ message: 'Input a valid Email Address', statusCode: 400 });
+        }
 
-const idUpload = await uploadGroup(idFiles);
-const selfieUpload = await uploadGroup(selfieFiles);
-const businessDocumentUpload = await uploadGroup(businessDocumentFiles);
-const companyLogoUpload = await uploadGroup(companyLogoFiles);
-const proofOfAddressUpload = await uploadGroup(proofOfAddressFiles);
+        if (!COMPANY_ROLES.includes(roleInCompany)) {
+            return next({ message: `Role in company must be one of: ${COMPANY_ROLES.join(', ')}`, statusCode: 400 });
+        }
 
+        if (!COMPANY_TYPES.includes(companyType)) {
+            return next({ message: `Company type must be one of: ${COMPANY_TYPES.join(', ')}`, statusCode: 400 });
+        }
 
-        const employerData = {
+        if (!INDUSTRIES.includes(industry)) {
+            return next({ message: `Industry must be one of: ${INDUSTRIES.join(', ')}`, statusCode: 400 });
+        }
+
+        if (yearFounded) {
+            const year = Number(yearFounded);
+            if (!Number.isInteger(year) || year < 1800 || year > new Date().getFullYear()) {
+                return next({ message: 'Year founded must be a valid year', statusCode: 400 });
+            }
+        }
+
+        for (const [field, value] of Object.entries(links)) {
+            if (value && !isHttpUrl(value)) {
+                return next({ message: `${field} must be a valid http or https URL.`, statusCode: 400 });
+            }
+        }
+
+        const idFile = req.files?.identification?.[0];
+        const selfieFile = req.files?.selfie?.[0];
+        const businessDocumentFile = req.files?.businessDocument?.[0];
+        const companyLogoFile = req.files?.companyLogo?.[0];
+        const proofOfAddressFile = req.files?.proofOfAddress?.[0];
+
+        if (!idFile || !selfieFile || !businessDocumentFile) {
+            return next({
+                message: 'Identification, business registration document and selfie images are required',
+                statusCode: 400
+            });
+        }
+
+        const idUpload = await uploadOne(idFile);
+        const selfieUpload = await uploadOne(selfieFile);
+        const businessDocumentUpload = await uploadOne(businessDocumentFile);
+        const companyLogoUpload = await uploadOne(companyLogoFile);
+        const proofOfAddressUpload = await uploadOne(proofOfAddressFile);
+
+        const kyc = await kycModel.create({
             employerId: id,
             fullLegalName,
             jobTitle,
+            roleInCompany,
             companyEmail,
+            phoneNumber,
             companyName,
+            companyType,
+            industry,
+            aboutTheCompany,
             registrationNumber,
-            companyWebsite,
+            taxId: taxId || undefined,
+            officeAddress,
+            city,
+            state,
+            country,
             organizationSize,
-            identification: idUpload.urls[0],
-            identificationPublicId: idUpload.publicIds[0],
-            businessDocument: businessDocumentUpload.urls[0],
-            businessDocumentPublicId: businessDocumentUpload.publicIds[0],
-            selfie: selfieUpload.urls[0],
-            selfiePublicId: selfieUpload.publicIds[0],
-            companyLogo: companyLogoUpload.urls[0],
-            companyLogoPublicId: companyLogoUpload.publicIds[0],
-            proofOfAddress: proofOfAddressUpload.urls[0],
-            proofOfAddressPublicId: proofOfAddressUpload.publicIds[0],
-        };
+            whatDoYouHireFor: whatDoYouHireFor || undefined,
+            yearFounded: yearFounded ? Number(yearFounded) : undefined,
+            ...Object.fromEntries(Object.entries(links).filter(([, v]) => v)),
+            identification: idUpload.url,
+            identificationPublicId: idUpload.publicId,
+            selfie: selfieUpload.url,
+            selfiePublicId: selfieUpload.publicId,
+            businessDocument: businessDocumentUpload.url,
+            businessDocumentPublicId: businessDocumentUpload.publicId,
+            companyLogo: companyLogoUpload.url,
+            companyLogoPublicId: companyLogoUpload.publicId,
+            proofOfAddress: proofOfAddressUpload.url,
+            proofOfAddressPublicId: proofOfAddressUpload.publicId
+        });
 
-        const kyc = await kycModel.create(employerData);
+        uploaded.length = 0; // saved, so don't delete anything in the catch
 
+        // Notify admins. A failure here must not turn a successful submission into an error.
         try {
-                    const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
-                    await Promise.all(
-                        admins.map((a) => createNotification({
-                            recipient: a._id,
-                            sender: id,
-                            title: 'New KYC Submission',
-                            message: `${fullLegalName} submitted a new KYC application.`,
-                            type: 'kyc',
-                            idType: 'kycId',
-                            id: kyc._id
-                        })
-                    )
-                    )
-                } catch (notifyError) {
-                    console.error('Failed to create KYC notification:', notifyError.message);
-                }
+            const admins = await userModel.find({ role: 'admin' }).select('_id').lean();
+            await Promise.all(
+                admins.map((admin) =>
+                    createNotification({
+                        recipient: admin._id,
+                        sender: id,
+                        title: 'New KYC Submission',
+                        message: `${fullLegalName} submitted a new KYC application.`,
+                        type: 'kyc',
+                        idType: 'kycId',
+                        id: kyc._id
+                    })
+                )
+            );
+        } catch (notifyError) {
+            console.error('Failed to create KYC notification:', notifyError.message);
+        }
 
-        res.status(201).json({
-            message: "Employer KYC submitted successfully",
-            data: kyc
-        })
+        // Leave the Cloudinary public IDs out of the response
+        const data = Object.fromEntries(
+            Object.entries(kyc.toObject()).filter(([key]) => !key.endsWith('PublicId') && key !== '__v')
+        );
 
+        return res.status(201).json({
+            message: 'Employer KYC submitted successfully',
+            data
+        });
     } catch (error) {
-        return next({
-            message: error.message,
-            statusCode: 500
-        })
+        await Promise.all(
+            uploaded.map((u) =>
+                cloudinary.uploader.destroy(u.publicId, { resource_type: u.resourceType }).catch(() => {})
+            )
+        );
+
+        if (error.code === 11000) {
+            return next({ message: 'KYC already submitted for this user', statusCode: 400 });
+        }
+        return next({ message: error.message, statusCode: 500 });
+    } finally {
+        removeTempFiles(allFiles);
     }
-}
+};
 
 exports.getEmployerKyc = async (req, res, next) => {
     try {
@@ -509,15 +597,15 @@ exports.deleteJob = async (req, res, next) => {
     }
 };
 
-const removeTempFiles = (files) => {
-    for (const file of files) {
-        try {
-            if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
-        } catch (err) {
-            console.error('Temp file cleanup failed:', err.message);
-        }
-    }
-};
+// const removeTempFiles = (files) => {
+//     for (const file of files) {
+//         try {
+//             if (file?.path && fs.existsSync(file.path)) fs.unlinkSync(file.path);
+//         } catch (err) {
+//             console.error('Temp file cleanup failed:', err.message);
+//         }
+//     }
+// };
 
 exports.applyJob = async (req, res, next) => {
     const cvFiles = req.files?.cv || [];
